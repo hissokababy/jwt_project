@@ -5,6 +5,7 @@ import datetime
 # Create your models here.
 week = datetime.timedelta(days=7)
 
+
 class Session(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions', verbose_name='Пользователь')
     is_active = models.BooleanField(default=False, verbose_name='Активная сессия')
