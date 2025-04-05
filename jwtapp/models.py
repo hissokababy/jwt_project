@@ -8,14 +8,14 @@ week = datetime.timedelta(days=7)
 
 class Session(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions', verbose_name='Пользователь')
-    is_active = models.BooleanField(default=False, verbose_name='Активная сессия')
+    user_ip = models.CharField(max_length=155, verbose_name='Ip устройства пользователя', blank=True, null=True)
 
     def __str__(self):
-        return f'Сессия пользователя: {self.user.username} - Активность: {self.is_active}'
+        return f'Сессия пользователя: {self.user.username} - Активность: {self.user.is_active}'
 
     class Meta:
         verbose_name = 'Сессия'
-        verbose_name = 'Сессии'
+        verbose_name_plural = 'Сессии'
 
 
 class RefreshToken(models.Model):
@@ -29,6 +29,6 @@ class RefreshToken(models.Model):
 
     class Meta:
         verbose_name = 'Refresh token'
-        verbose_name = 'Refresh token'
+        verbose_name_plural = 'Refresh tokens'
 
 

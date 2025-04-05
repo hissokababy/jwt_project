@@ -10,12 +10,13 @@ class JWTAuthentication(BaseAuthentication):
         # print(header)
         if header is None:
             return None
-        
-        try:
-            decoded = jwt.decode(header, SECRET_KEY, algorithms="HS256")
 
-            # user = User.objects.filter(id=)
-            print(decoded)
-        except Exception as e:
-            print(e)
+        print(header)        
+        # try:
+        #     decoded = jwt.decode(header, SECRET_KEY, algorithms="HS256")
+
+        #     # user = User.objects.filter(id=)
+        #     print(decoded)
+        # except Exception as e:
+        #     print(e)
         
