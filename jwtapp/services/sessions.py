@@ -1,14 +1,16 @@
-from jwtapp.models import RefreshToken, Session
+from jwtapp.models import Session
 from django.contrib.auth.models import User
 
-def user_sessions(user, token):
-    get_user_sessions = Session.objects.filter(user=user.id)
+def update_token(user, token):
+    session = Session.objects.filter(user=user).exists()
 
-    if not len(get_user_sessions) > 3 and user.is_active != False:
-        session = Session.objects.create(user=user)
+    # print(session.refresh_token)
 
-        refresh_token = RefreshToken.objects.create(session=session, token=token)
-
-        return True
+    return True
 
 
+def get_user(user_id):
+    user = User.objects.filter(id=user_id).exists()
+
+    if user == True:
+        return user
