@@ -21,7 +21,8 @@ class Session(models.Model):
 class RefreshToken(models.Model):
     session = models.OneToOneField(Session, on_delete=models.CASCADE, related_name='refresh_token')
     token = models.CharField(max_length=550)
-    duration = models.DurationField(default=week)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата генерации токена', blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата последнего обновления', blank=True, null=True)
 
     def __str__(self):
         return f'Refresh token {self.pk}'

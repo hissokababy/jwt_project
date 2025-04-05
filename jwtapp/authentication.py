@@ -1,7 +1,7 @@
-from rest_framework.authentication import BaseAuthentication
-from rest_framework.authtoken.models import Token
 import jwt
-from django.contrib.auth.models import User
+from rest_framework.authentication import BaseAuthentication
+
+from jwtapp.configs import SECRET_KEY
 
 class JWTAuthentication(BaseAuthentication):
     
@@ -11,13 +11,11 @@ class JWTAuthentication(BaseAuthentication):
         if header is None:
             return None
         
-        secret_key = 'a-string-secret-at-least-256-bits-long'
-        
         try:
-            decoded = jwt.decode(header, secret_key, algorithms="HS256")
+            decoded = jwt.decode(header, SECRET_KEY, algorithms="HS256")
 
             # user = User.objects.filter(id=)
+            print(decoded)
         except Exception as e:
             print(e)
         
-        print(decoded)
