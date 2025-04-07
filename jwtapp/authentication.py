@@ -1,38 +1,58 @@
 import jwt
 from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated
+from django.contrib.auth.models import User
 
-from jwtapp.services.sessions import update_token
-from project_jwt.settings import TOKEN_SECRET_KEY
+from jwt import exceptions
+from project_jwt.settings import TOKEN_SECRET_KEY, ALGORITHMS
+from jwtapp.services.sessions import get_user
+from jwtapp.tokens import update_token
 
 class JWTAuthentication(BaseAuthentication):
     
     def authenticate(self, request):
-        # header = request.headers.get("Authorization")
-
-        header = request.headers
-
+        header = request.headers.get("Authorization")
         if header is None:
             return None
         
-        try:
-            header = request.headers['Cookie']
-        except:
+        token = header
+
+        token = self.get_raw_token(token)
+
+        if token is None:
             return None
-        
-        access_token, refresh_token = header.split('; ')
-
-        if access_token.startswith('access_token') and refresh_token.startswith('refresh_token'):
-
-            access_token = access_token.split('=')[-1]
-            refresh_token = refresh_token.split('=')[-1]
 
         try:
-            decoded = jwt.decode(access_token, TOKEN_SECRET_KEY, algorithms="HS256")
-            
-            # update_token()
+            decoded = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
 
+            user_id = decoded['user_id']
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                raise AuthenticationFailed('No such user')
+
+        except exceptions.ExpiredSignatureError:
+            raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
+        
         except Exception as e:
             raise AuthenticationFailed(e)
-            
         
+        return (user, None)
+
+
+    def get_raw_token(self, header):
+
+        parts = header.split()
+
+        if len(parts) == 0:
+            return None
+
+        return parts[0]
+
+
+
+    @classmethod
+    def create_jwt(cls, user_ip, user):
+        jwt_token = update_token(user_ip, user)
+        return jwt_token

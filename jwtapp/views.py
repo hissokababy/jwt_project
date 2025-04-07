@@ -5,16 +5,18 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 
 from django.contrib.auth.models import User
-from jwtapp.serializers import RegisterSerializer, UserListSerializer
+from jwtapp.serializers import GetNewTokensSerializer, RegisterSerializer, UserListSerializer
 
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.tokens import generate_access_token, generate_refresh_token
-from jwtapp.services.sessions import update_token
+from jwtapp.services.sessions import create_user_session
 
+from jwtapp.utils import get_client_ip
 from project_jwt.settings import TOKEN_SECRET_KEY
 
 # Create your views here.
@@ -23,8 +25,9 @@ from project_jwt.settings import TOKEN_SECRET_KEY
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
 
-
     def post(self, request, format=None):
+        
+        user_ip = get_client_ip(request)
         
         serializer = RegisterSerializer(data=request.data)
 
@@ -35,26 +38,57 @@ class RegisterView(APIView):
 
             if user and user.is_active == True:
 
-                access_token = generate_access_token(user.id)
-                refresh_token = generate_refresh_token(user.id)
+                access_token = generate_access_token(user)
+                refresh_token = generate_refresh_token(user)
 
-                # update_token(user, token=refresh_token)
+                response = {
+                    'access': access_token,
+                    'refresh': refresh_token
+                }
 
-                response = Response('SUCCESS REGIST', status=status.HTTP_201_CREATED)
+                create_user_session(refresh_token, user_ip)
 
-                # response_cookies = set_jwt_cookies(response, access_token=access_token, refresh_token=refresh_token)
-                # return response_cookies
+                return Response(response, status=status.HTTP_201_CREATED)
 
-            return response.Response('OK', status=status.HTTP_201_CREATED)
 
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response('OK', status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserListView(generics.ListAPIView):
     queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     serializer_class = UserListSerializer
 
-    # authentication_classes = [JWTAuthentication]
 
 
+class GetNewTokensView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = GetNewTokensSerializer
 
+    def post(self, request, *args, **kwargs):
+
+        user_ip = get_client_ip(request)
+
+        serializer = self.serializer_class(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data.get('username')
+
+        user = User.objects.filter(username=username).first()
+
+        print(user)
+
+        if user is None:
+            return Response('User not found', status=status.HTTP_400_BAD_REQUEST)
+        
+        jwt_auth = JWTAuthentication()
+
+        jwt_token = jwt_auth.create_jwt(request, user_ip, user)
+
+        return Response({'JWT': jwt_token})
+
+            

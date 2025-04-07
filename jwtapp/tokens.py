@@ -4,11 +4,12 @@ from rest_framework import response
 from django.utils import timezone
 from jwtapp.services.sessions import get_user
 
+from jwtapp.models import Session
 from project_jwt.settings import ACCESS_TOKEN_EXPIRE, TOKEN_SECRET_KEY
 
-def generate_access_token(user_id):
+def generate_access_token(user):
     payload = {
-        'user_id': user_id,
+        'user_id': user.id,
         'exp': time.time() + ACCESS_TOKEN_EXPIRE,
         'iat': time.time(),
     }
@@ -18,9 +19,10 @@ def generate_access_token(user_id):
     return access_token
 
 
-def generate_refresh_token(user_id):
+def generate_refresh_token(user):
     payload = {
-        'user_id': user_id,
+        'user_id': user.id,
+        'name': f'{user.username}',
         'exp': time.time() + (7 * 86400),
         'iat': time.time(),
     }
@@ -29,11 +31,24 @@ def generate_refresh_token(user_id):
     return refresh_token
 
 
-def handle_token(user):
-    user = get_user(user)
+def update_token(user_ip, user):
 
-    access_token = generate_access_token(user.id)
-    refresh_token = generate_refresh_token(user.id)
+    session = Session.objects.get(user=user, user_ip=user_ip)
+
+    print(session.refresh_token)
+
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
+
+    session.refresh_token = refresh_token
+    session.save()
+
+    response = {
+        'access': access_token,
+        'refresh': refresh_token
+    }
+
+    return response
 
 
 

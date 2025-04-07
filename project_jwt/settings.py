@@ -161,4 +161,6 @@ load_dotenv()
 
 TOKEN_SECRET_KEY = os.getenv('SECRET_KEY')
 
+ALGORITHMS = 'HS256'
+
 ACCESS_TOKEN_EXPIRE = 300

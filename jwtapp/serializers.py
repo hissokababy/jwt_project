@@ -48,3 +48,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
+    
+
+class GetNewTokensSerializer(serializers.Serializer):
+    username = serializers.CharField()
+
