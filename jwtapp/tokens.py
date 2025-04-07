@@ -2,6 +2,9 @@ import jwt
 import time
 from rest_framework import response
 from django.utils import timezone
+from rest_framework.exceptions import AuthenticationFailed
+
+
 from jwtapp.services.sessions import get_user
 
 from jwtapp.models import Session
@@ -31,11 +34,12 @@ def generate_refresh_token(user):
     return refresh_token
 
 
-def update_token(user_ip, user):
+def update_token(user_ip, user, token):
 
     session = Session.objects.get(user=user, user_ip=user_ip)
 
-    print(session.refresh_token)
+    if not token == session.refresh_token:
+        raise AuthenticationFailed('invalid token')
 
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)

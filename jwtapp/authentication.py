@@ -1,6 +1,6 @@
 import jwt
 from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated
+from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
 
 from jwt import exceptions
@@ -39,7 +39,7 @@ class JWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed(e)
         
         return (user, None)
-
+    
 
     def get_raw_token(self, header):
 
@@ -49,10 +49,11 @@ class JWTAuthentication(BaseAuthentication):
             return None
 
         return parts[0]
+    
 
+    def create_jwt(self, request, user_ip, user):
+        header = request.headers.get("Authorization")
+        token = self.get_raw_token(header)
 
-
-    @classmethod
-    def create_jwt(cls, user_ip, user):
-        jwt_token = update_token(user_ip, user)
+        jwt_token = update_token(user_ip, user, token)
         return jwt_token
