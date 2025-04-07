@@ -1,14 +1,14 @@
 import jwt
 import time
-from rest_framework import response
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 
 
-from jwtapp.services.sessions import get_user
-
 from jwtapp.models import Session
-from project_jwt.settings import ACCESS_TOKEN_EXPIRE, TOKEN_SECRET_KEY
+from project_jwt.settings import (ACCESS_TOKEN_ALGORITHMS, 
+                                  ACCESS_TOKEN_EXPIRE, TOKEN_SECRET_KEY, 
+                                  REFRESH_TOKEN_EXPIRE, REFRESH_TOKEN_ALGORITHMS)
+
 
 def generate_access_token(user):
     payload = {
@@ -17,7 +17,7 @@ def generate_access_token(user):
         'iat': time.time(),
     }
     timezone.now().timestamp()
-    access_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm="HS256")
+    access_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm=ACCESS_TOKEN_ALGORITHMS)
 
     return access_token
 
@@ -26,10 +26,10 @@ def generate_refresh_token(user):
     payload = {
         'user_id': user.id,
         'name': f'{user.username}',
-        'exp': time.time() + (7 * 86400),
+        'exp': time.time() + REFRESH_TOKEN_EXPIRE,
         'iat': time.time(),
     }
-    refresh_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm="HS256")
+    refresh_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm=REFRESH_TOKEN_ALGORITHMS)
 
     return refresh_token
 
@@ -56,3 +56,14 @@ def update_token(user_ip, user, token):
 
 
 
+
+
+def create_jwt(request, user_ip, user):
+    header = request.headers.get("Authorization")
+
+    parts = header.split()
+    if len(parts) == 0:
+        return None
+    
+    jwt_token = update_token(user_ip, user, header)
+    return jwt_token

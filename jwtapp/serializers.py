@@ -4,6 +4,8 @@ from django.contrib.auth.password_validation import validate_password
 
 from django.contrib.auth.models import User
 
+from jwtapp.services.sessions import create_user
+
 
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,19 +39,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = User.objects.create(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name']
-        )
-        
-        user.set_password(validated_data['password'])
-        user.save()
-
+        user = create_user(validated_data)
         return user
     
 
 class GetNewTokensSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    refresh_token = serializers.CharField()
 
