@@ -3,6 +3,7 @@ import time
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 from jwt import exceptions
+from rest_framework import serializers
 
 from django.contrib.auth.models import User
 from jwtapp.models import Session
@@ -86,3 +87,12 @@ def validate_token(token):
         raise AuthenticationFailed(e)
     
     return user
+
+
+def check_session_activity(refresh_token):
+    
+    session = Session.objects.get(refresh_token=refresh_token)
+
+    if session.active == False:
+        raise serializers.ValidationError('Please sign in')
+

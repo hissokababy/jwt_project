@@ -9,13 +9,15 @@ from django.contrib.auth import authenticate, login
 
 
 from django.contrib.auth.models import User
-from jwtapp.serializers import (CloseSessionSerializer, MySessionsSerializer, RefreshTokenSerializer, 
+from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionSerializer, LoginSerializer, 
+                                MySessionsSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer,
                                 )
 
 from jwtapp.authentication import JWTAuthentication
 
-from jwtapp.services.sessions import generate_new_user_tokens, generate_user_tokens
+from jwtapp.services.sessions import (auth_user, close_session, close_sessions, 
+                                      generate_new_user_tokens, generate_user_tokens)
 from jwtapp.models import Session
 
 # Create your views here.
@@ -24,45 +26,50 @@ from jwtapp.models import Session
 class LoginView(APIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
 
     def post(self, request, format=None):
-        username = request.POST["username"]
-        password = request.POST["password"]
+        serializer = self.serializer_class(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        phone = serializer.validated_data.get('phone')
+        email = serializer.validated_data.get('email')
+        device_type = serializer.validated_data.get('device_type')
+        password = serializer.validated_data.get('password')
         
-        user = authenticate(username=username, password=password)
+        user = auth_user(request=request, email=email, password=password, device_type=device_type)
 
-        if user is not None:
-            if user.is_active:
+        print(user)
+        return Response('1')
 
-                login(request, user)
+        # if user is not None:
+        #     if user.is_active:
 
+        #         login(request, user)
 
-                return Response(status=status.HTTP_200_OK)
-            else:
-                return Response(status=status.HTTP_404_NOT_FOUND)
-        else:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        #         return Response(status=status.HTTP_200_OK)
+        #     else:
+        #         return Response(status=status.HTTP_404_NOT_FOUND)
+        # else:
+        #     return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
-
     def post(self, request):
-        try:
-            serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data)
 
-            serializer.is_valid(raise_exception=True)
+        serializer.is_valid(raise_exception=True)
 
-            user = serializer.save()
+        user = serializer.save()
         
-            response = generate_new_user_tokens(user)
+        response = generate_new_user_tokens(user)
 
-            return Response(response, status=status.HTTP_201_CREATED)
-        
-        except Exception as e:
-            return Response(e)
+        return Response(response, status=status.HTTP_201_CREATED)
+
 
 
 class GetNewTokensView(APIView):
@@ -82,6 +89,11 @@ class GetNewTokensView(APIView):
         return Response(user_tokens)
 
             
+class ResetPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = RefreshTokenSerializer
+
 
 # РАБОТА С СЕССИЯМИ
 
@@ -104,17 +116,46 @@ class CloseSessionView(APIView):
 
         serializer.is_valid(raise_exception=True)
 
-        print(serializer)
+        session_id = serializer.validated_data.get('session_id')
 
-        return Response('1', status=status.HTTP_201_CREATED)
+        response = close_session(session_id=session_id)
+
+        return Response(response, status=status.HTTP_202_ACCEPTED)
+    
+
+class CloseAllSessionsView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = CloseAllSessionsSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        current_session_id = serializer.validated_data.get('current_session_id')
+
+        response = close_sessions(current_session_id)
+
+        return Response(response, status=status.HTTP_202_ACCEPTED)
 
 
 
+class CloseSessionByCredentialsView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = CloseAllSessionsSerializer
 
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
 
+        serializer.is_valid(raise_exception=True)
 
+        current_session_id = serializer.validated_data.get('current_session_id')
 
+        response = close_sessions(current_session_id)
 
+        return Response(response, status=status.HTTP_202_ACCEPTED)
 
 
 
@@ -128,9 +169,11 @@ class SessionLogoutView(APIView):
 
             serializer.is_valid(raise_exception=True)
 
-            print(serializer)
+            refresh_token = serializer.validated_data.get('refresh_token')
 
-            return Response('1', status=status.HTTP_201_CREATED)
+            response = close_session(refresh_token=refresh_token)
+
+            return Response(response, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             return Response(e)
