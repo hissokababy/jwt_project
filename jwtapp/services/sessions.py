@@ -6,24 +6,18 @@ from project_jwt.settings import ACCESS_TOKEN_ALGORITHMS, TOKEN_SECRET_KEY, REFR
 from jwtapp.tokens import generate_access_token, generate_refresh_token
 
 
-def create_user_session(refresh_token):
+def create_user_session(user, device_type):
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
 
-    decoded = jwt.decode(refresh_token, TOKEN_SECRET_KEY, algorithms=REFRESH_TOKEN_ALGORITHMS)
+    user_session = Session.objects.create(user=user, refresh_token=refresh_token, device_type=device_type)
 
-    user_id = decoded['user_id']
+    response = {
+        'access_token': access_token,
+        'refresh_token': refresh_token
+    }
+    return response
 
-    user = get_user(user_id)
-
-    session = Session.objects.filter(user=user).first()
-
-    if session and session.active == True:
-        session.refresh_token = refresh_token
-    else:
-        session = Session.objects.create(user=user, refresh_token=refresh_token)
-
-    session.save()
-
-    
 
 def get_user(user_id):
 
@@ -51,45 +45,22 @@ def create_user(validated_data):
 
 def generate_user_tokens(token):
         
-    decoded = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=ACCESS_TOKEN_ALGORITHMS)
+    session = Session.objects.get(refresh_token=token)
 
-    user_id = decoded['user_id']
+    if session.user.is_active and session.active == True:
 
-    user = get_user(user_id)
-
-    if user and user.is_active == True:
-
-        access_token = generate_access_token(user)
-        refresh_token = generate_refresh_token(user)
+        access_token = generate_access_token(session.user)
+        refresh_token = generate_refresh_token(session.user)
 
         response = {
             'access': access_token,
             'refresh': refresh_token
         }
 
-        create_user_session(refresh_token)
+        session.refresh_token = refresh_token
+        session.save()
     
     return response
-
-
-def generate_new_user_tokens(user):
-
-    user = get_user(user.id)
-
-    if user and user.is_active == True:
-
-        access_token = generate_access_token(user)
-        refresh_token = generate_refresh_token(user)
-
-        response = {
-            'access': access_token,
-            'refresh': refresh_token
-        }
-
-        create_user_session(refresh_token)
-    
-    return response
-
 
 
 def validate_closing_session(session_id):
@@ -131,18 +102,33 @@ def close_sessions(current_session_id):
     return response
 
 
-def auth_user(request, email, password, device_type):
+def auth_user(email, password, device_type):
     user = User.objects.get(email=email)
     verified = user.check_password(raw_password=password)
 
     if verified is False:
         return None
     
+    session_saved = None
+
     for session in user.sessions.all():
         if session.device_type == device_type:
             session.active = True
-            session.save()
 
-        else:
-            generate_new_user_tokens(user)
-    ...
+            access_token = generate_access_token(user)
+            refresh_token = generate_refresh_token(user)
+
+            session.refresh_token = refresh_token
+            session.save()
+            session_saved = True
+    
+            response = {
+                'access_token': access_token,
+                'refresh_token': refresh_token
+            }
+        
+
+    if not session_saved:
+        response = create_user_session(user, device_type=device_type)
+    
+    return response

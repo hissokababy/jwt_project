@@ -17,7 +17,7 @@ from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionSerializ
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_sessions, 
-                                      generate_new_user_tokens, generate_user_tokens)
+                                      create_user_session, generate_user_tokens)
 from jwtapp.models import Session
 
 # Create your views here.
@@ -38,21 +38,10 @@ class LoginView(APIView):
         device_type = serializer.validated_data.get('device_type')
         password = serializer.validated_data.get('password')
         
-        user = auth_user(request=request, email=email, password=password, device_type=device_type)
+        response = auth_user(email=email, password=password, device_type=device_type)
 
-        print(user)
-        return Response('1')
+        return Response(response, status=status.HTTP_202_ACCEPTED)
 
-        # if user is not None:
-        #     if user.is_active:
-
-        #         login(request, user)
-
-        #         return Response(status=status.HTTP_200_OK)
-        #     else:
-        #         return Response(status=status.HTTP_404_NOT_FOUND)
-        # else:
-        #     return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class RegisterView(APIView):
@@ -65,8 +54,10 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
+
+        device_type = 'mobile'
         
-        response = generate_new_user_tokens(user)
+        response = create_user_session(user, device_type=device_type)
 
         return Response(response, status=status.HTTP_201_CREATED)
 
