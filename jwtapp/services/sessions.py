@@ -102,6 +102,25 @@ def close_sessions(current_session_id):
     return response
 
 
+
+def close_session_by_credentials(session_id, phone, email, password):
+    
+    session = Session.objects.get(pk=session_id)
+
+    verified = session.user.check_password(raw_password=password)
+
+    if verified is False:
+        return None
+    
+    session.active = False
+    session.save()
+
+    response = {
+        "results": {"closed": True}}
+    
+    return response
+
+
 def auth_user(email, password, device_type):
     user = User.objects.get(email=email)
     verified = user.check_password(raw_password=password)

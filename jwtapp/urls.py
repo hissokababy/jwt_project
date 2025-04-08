@@ -3,7 +3,7 @@ from django.urls import path
 from jwtapp.views import (RegisterView, MySessionsView,
                            GetNewTokensView, LoginView,
                            SessionLogoutView, CloseSessionView,
-                           CloseAllSessionsView)
+                           CloseAllSessionsView, CloseSessionByCredentialsView)
 
 urlpatterns = [
 
@@ -15,5 +15,6 @@ urlpatterns = [
     path('api/v1/auth/sessions/my-sessions/', MySessionsView.as_view()),
     path('api/v1/auth/sessions/close/', CloseSessionView.as_view()),
     path('api/v1/auth/sessions/close-all/', CloseAllSessionsView.as_view()),
+    path('api/v1/auth/sessions/close-by-credentials/', CloseSessionByCredentialsView.as_view()),
     path('api/v1/auth/sessions/log-out/', SessionLogoutView.as_view()),
 ]

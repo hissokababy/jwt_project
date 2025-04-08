@@ -43,7 +43,7 @@ class LoginSerializer(serializers.Serializer):
     device_type = serializers.CharField(required=True)
     password = serializers.CharField(required=True, validators=[validate_password])
 
-    
+
 
 
 class RefreshTokenSerializer(serializers.Serializer):
@@ -102,10 +102,10 @@ class CloseAllSessionsSerializer(serializers.Serializer):
 
 
 class CloseSessionByCredentialsSerializer(serializers.Serializer):
-    session_id = serializers.IntegerField()
+    session_id = serializers.IntegerField(required=True)
     phone = serializers.CharField()
     email = serializers.EmailField()
-    password = serializers.CharField()
+    password = serializers.CharField(required=True, validators=[validate_password])
 
     def validate_session_id(self, value):
         try:
@@ -114,5 +114,3 @@ class CloseSessionByCredentialsSerializer(serializers.Serializer):
             raise serializers.ValidationError(e)
         return value
     
-    def validate_password(self, value):
-        return value

@@ -9,14 +9,14 @@ from django.contrib.auth import authenticate, login
 
 
 from django.contrib.auth.models import User
-from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionSerializer, LoginSerializer, 
+from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer,
                                 )
 
 from jwtapp.authentication import JWTAuthentication
 
-from jwtapp.services.sessions import (auth_user, close_session, close_sessions, 
+from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
                                       create_user_session, generate_user_tokens)
 from jwtapp.models import Session
 
@@ -135,16 +135,19 @@ class CloseAllSessionsView(APIView):
 class CloseSessionByCredentialsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    serializer_class = CloseAllSessionsSerializer
+    serializer_class = CloseSessionByCredentialsSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
 
         serializer.is_valid(raise_exception=True)
 
-        current_session_id = serializer.validated_data.get('current_session_id')
+        session_id  = serializer.validated_data.get('session_id')
+        phone  = serializer.validated_data.get('phone')
+        email  = serializer.validated_data.get('email')
+        password  = serializer.validated_data.get('password')
 
-        response = close_sessions(current_session_id)
+        response = close_session_by_credentials(session_id, phone, email, password)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
