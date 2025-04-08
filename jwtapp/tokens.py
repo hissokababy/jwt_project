@@ -2,8 +2,9 @@ import jwt
 import time
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
+from jwt import exceptions
 
-
+from django.contrib.auth.models import User
 from jwtapp.models import Session
 from project_jwt.settings import (ACCESS_TOKEN_ALGORITHMS, 
                                   ACCESS_TOKEN_EXPIRE, TOKEN_SECRET_KEY, 
@@ -16,7 +17,7 @@ def generate_access_token(user):
         'exp': time.time() + ACCESS_TOKEN_EXPIRE,
         'iat': time.time(),
     }
-    timezone.now().timestamp()
+    # timezone.now().timestamp()
     access_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm=ACCESS_TOKEN_ALGORITHMS)
 
     return access_token
@@ -55,9 +56,6 @@ def update_token(user_ip, user, token):
     return response
 
 
-
-
-
 def create_jwt(request, user_ip, user):
     header = request.headers.get("Authorization")
 
@@ -67,3 +65,24 @@ def create_jwt(request, user_ip, user):
     
     jwt_token = update_token(user_ip, user, header)
     return jwt_token
+
+
+def validate_token(token):
+    try:
+        decoded = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=ACCESS_TOKEN_ALGORITHMS)
+
+        user_id = decoded['user_id']
+
+        try:
+            user = User.objects.filter(id=user_id).first()
+            
+        except User.DoesNotExist:
+            raise AuthenticationFailed('No such user')
+
+    except exceptions.ExpiredSignatureError:
+        raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
+        
+    except Exception as e:
+        raise AuthenticationFailed(e)
+    
+    return user

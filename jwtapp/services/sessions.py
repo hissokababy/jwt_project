@@ -6,7 +6,7 @@ from project_jwt.settings import ACCESS_TOKEN_ALGORITHMS, TOKEN_SECRET_KEY, REFR
 from jwtapp.tokens import generate_access_token, generate_refresh_token
 
 
-def create_user_session(refresh_token, user_ip):
+def create_user_session(refresh_token):
 
     decoded = jwt.decode(refresh_token, TOKEN_SECRET_KEY, algorithms=REFRESH_TOKEN_ALGORITHMS)
 
@@ -14,7 +14,10 @@ def create_user_session(refresh_token, user_ip):
 
     user = get_user(user_id)
 
-    session = Session.objects.create(user=user, user_ip=user_ip, refresh_token=refresh_token)
+    session = Session.objects.filter(user=user).first()
+
+    session.refresh_token = refresh_token
+    session.save()
     
 
 def get_user(user_id):
@@ -42,8 +45,13 @@ def create_user(validated_data):
 
 
 
-def generate_user_tokens(user):
-    user = User.objects.get(id=user.id)
+def generate_user_tokens(token):
+        
+    decoded = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=ACCESS_TOKEN_ALGORITHMS)
+
+    user_id = decoded['user_id']
+
+    user = get_user(user_id)
 
     if user and user.is_active == True:
 
@@ -58,3 +66,30 @@ def generate_user_tokens(user):
         create_user_session(refresh_token)
     
     return response
+
+
+def generate_new_user_tokens(user):
+
+    user = get_user(user.id)
+
+    if user and user.is_active == True:
+
+        access_token = generate_access_token(user)
+        refresh_token = generate_refresh_token(user)
+
+        response = {
+            'access': access_token,
+            'refresh': refresh_token
+        }
+
+        create_user_session(refresh_token)
+    
+    return response
+
+
+
+def validate_closing_session(session_id):
+    sessions = [i.pk for i in Session.objects.all()]
+
+    if session_id in sessions:
+        return True
