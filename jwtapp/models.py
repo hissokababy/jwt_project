@@ -1,10 +1,15 @@
+from time import timezone
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, AbstractUser
 
 # Create your models here.
 
-# class User(AbstractUser):
-#     ...
+class User(AbstractUser):
+    phone = models.CharField(max_length=50, verbose_name='Номер телефона', blank=True, null=True)
+    send_code = models.IntegerField(verbose_name='Код подтверждения', blank=True, null=True)
+    time_send = models.DateTimeField(verbose_name='Дата отправки кода', blank=True, null=True)
+
+
 
 class CommonInfo(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания', blank=True, null=True)

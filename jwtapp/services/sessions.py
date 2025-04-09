@@ -20,7 +20,6 @@ def create_user_session(user, device_type):
 
 
 def get_user(user_id):
-
     user = User.objects.filter(id=user_id).first()
 
     if user:
@@ -64,10 +63,11 @@ def generate_user_tokens(token):
 
 
 def validate_closing_session(session_id):
-    sessions = [i.pk for i in Session.objects.all()]
-
-    if session_id in sessions:
+    try:
+        session = Session.objects.get(pk=session_id)
         return True
+    except Session.DoesNotExist:
+        return False
 
 
 def close_session(session_id=None, refresh_token=None):
@@ -163,3 +163,9 @@ def verify_phone_email(phone, email, send_code):
 
     return True
 
+
+def check_code_time(current_time):
+
+    
+
+    ...

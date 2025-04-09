@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 
-from django.contrib.auth.models import User
+from jwtapp.models import User
 
 from jwtapp.services.sessions import create_user, validate_closing_session
 from jwtapp.tokens import check_session_activity, validate_token

@@ -1,3 +1,4 @@
+import time
 import jwt
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
@@ -8,7 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate, login
 
 
-from django.contrib.auth.models import User
+# from django.contrib.auth.models import User
+from jwtapp.models import User
 from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer,
@@ -68,6 +70,7 @@ class GetNewTokensView(APIView):
     serializer_class = RefreshTokenSerializer
 
     def post(self, request):
+
 
         serializer = self.serializer_class(data=request.data)
 
