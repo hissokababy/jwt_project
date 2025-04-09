@@ -1,19 +1,12 @@
-import jwt
 from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth.models import User
 
-from jwt import exceptions
-from jwtapp.tokens import validate_token
+from jwtapp.services.sessions import validate_token
 from project_jwt.settings import TOKEN_AUTH_HEADER
-from jwtapp.services.sessions import get_user
 
 
 class JWTAuthentication(BaseAuthentication):
     
     def authenticate(self, request):
-        # header = request.headers
-        # print(header)
         header = request.headers.get("Authorization")
 
         if header is None:
@@ -40,9 +33,7 @@ class JWTAuthentication(BaseAuthentication):
             return None
 
         return parts[1]
-        # return parts[0]
-
 
     def validate_token_auth(self, token):
-        user = validate_token(token)
+        user = validate_token(access_token=token)
         return user

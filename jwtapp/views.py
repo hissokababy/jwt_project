@@ -1,15 +1,10 @@
-import time
-import jwt
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import authenticate, login
 
-
-# from django.contrib.auth.models import User
 from jwtapp.models import User
 from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
@@ -19,8 +14,8 @@ from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCreden
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
-                                      create_user_session, generate_user_tokens, verify_phone_email)
-from jwtapp.models import Session
+                                    generate_user_tokens, user_sessions, validate_refresh_token, 
+                                    validate_register_data, validate_session_id, verify_phone_email)
 
 # Create your views here.
 
@@ -35,15 +30,11 @@ class LoginView(APIView):
 
         serializer.is_valid(raise_exception=True)
 
-        phone = serializer.validated_data.get('phone')
-        email = serializer.validated_data.get('email')
-        device_type = serializer.validated_data.get('device_type')
-        password = serializer.validated_data.get('password')
+        data = serializer.validated_data.values()
         
-        response = auth_user(email=email, password=password, device_type=device_type)
+        response = auth_user(*data)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
-
 
 
 class RegisterView(APIView):
@@ -52,37 +43,32 @@ class RegisterView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
-
-        user = serializer.save()
-
-        device_type = 'mobile'
         
-        response = create_user_session(user, device_type=device_type)
-
+        response = validate_register_data(serializer.validated_data)
+        
         return Response(response, status=status.HTTP_201_CREATED)
 
 
 
-class GetNewTokensView(APIView):
+class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
     serializer_class = RefreshTokenSerializer
 
     def post(self, request):
-
-
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
 
-        token = serializer.validated_data.get('refresh_token')
+        data = serializer.validated_data.values()
+        
+        token = validate_refresh_token(*data)
 
         user_tokens = generate_user_tokens(token=token)
 
         return Response(user_tokens)
 
-            
+
+# нужно доработать
 class ResetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -111,22 +97,22 @@ class MySessionsView(generics.ListAPIView):
     serializer_class = MySessionsSerializer
 
     def get_queryset(self):
-        return Session.objects.filter(user=self.request.user)
+        return user_sessions(self.request.user)
 
 
 class CloseSessionView(APIView):
-    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     serializer_class = CloseSessionSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.values()
 
-        session_id = serializer.validated_data.get('session_id')
+        session = validate_session_id(*data)
 
-        response = close_session(session_id=session_id)
+        response = close_session(session_id=session.id)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
@@ -138,15 +124,13 @@ class CloseAllSessionsView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.values()
+        current_session = validate_session_id(*data)
 
-        current_session_id = serializer.validated_data.get('current_session_id')
-
-        response = close_sessions(current_session_id)
+        response = close_sessions(current_session.id)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
-
 
 
 class CloseSessionByCredentialsView(APIView):
@@ -156,18 +140,13 @@ class CloseSessionByCredentialsView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
+        validate_session_id(serializer.validated_data['session_id'])
+        data = serializer.validated_data.values()
 
-        session_id  = serializer.validated_data.get('session_id')
-        phone  = serializer.validated_data.get('phone')
-        email  = serializer.validated_data.get('email')
-        password  = serializer.validated_data.get('password')
-
-        response = close_session_by_credentials(session_id, phone, email, password)
+        response = close_session_by_credentials(*data)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
-
 
 
 class SessionLogoutView(APIView):
@@ -177,9 +156,7 @@ class SessionLogoutView(APIView):
     def post(self, request):
         try:
             serializer = self.serializer_class(data=request.data)
-
             serializer.is_valid(raise_exception=True)
-
             refresh_token = serializer.validated_data.get('refresh_token')
 
             response = close_session(refresh_token=refresh_token)

@@ -1,25 +1,27 @@
 import jwt
 import time
 from django.utils import timezone
-from rest_framework.exceptions import AuthenticationFailed
-from jwt import exceptions
-from rest_framework import serializers
 
-from django.contrib.auth.models import User
-from jwtapp.models import Session
-from project_jwt.settings import (ACCESS_TOKEN_ALGORITHMS, 
-                                  ACCESS_TOKEN_EXPIRE, TOKEN_SECRET_KEY, 
-                                  REFRESH_TOKEN_EXPIRE, REFRESH_TOKEN_ALGORITHMS)
+from project_jwt.settings import (ALGORITHMS, 
+                                  ACCESS_TOKEN_EXPIRE, ACCESS_TOKEN_SECRET_KEY, 
+                                  REFRESH_TOKEN_EXPIRE, REFRESH_TOKEN_SECRET_KEY,
+                                  HS256_ALGORITHM, RS256_ALGORITHM,
+                                  PUBLIC_KEY, PRIVATE_KEY)
 
 
 def generate_access_token(user):
+
     payload = {
         'user_id': user.id,
-        'exp': time.time() + ACCESS_TOKEN_EXPIRE,
-        'iat': time.time(),
+        'exp': timezone.now().timestamp() + ACCESS_TOKEN_EXPIRE,
+        'iat': timezone.now().timestamp(),
     }
-    # timezone.now().timestamp()
-    access_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm=ACCESS_TOKEN_ALGORITHMS)
+
+    if ALGORITHMS == HS256_ALGORITHM:
+        access_token = jwt.encode(payload=payload, key=ACCESS_TOKEN_SECRET_KEY, algorithm=ALGORITHMS)
+    
+    elif ALGORITHMS == RS256_ALGORITHM:
+        access_token = jwt.encode(payload=payload, key=PRIVATE_KEY, algorithm=ALGORITHMS)
 
     return access_token
 
@@ -28,71 +30,38 @@ def generate_refresh_token(user):
     payload = {
         'user_id': user.id,
         'name': f'{user.username}',
-        'exp': time.time() + REFRESH_TOKEN_EXPIRE,
-        'iat': time.time(),
+        'exp': timezone.now().timestamp() + REFRESH_TOKEN_EXPIRE,
+        'iat': timezone.now().timestamp(),
     }
-    refresh_token = jwt.encode(payload=payload, key=TOKEN_SECRET_KEY, algorithm=REFRESH_TOKEN_ALGORITHMS)
+
+    if ALGORITHMS == HS256_ALGORITHM:
+        refresh_token = jwt.encode(payload=payload, key=REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHMS)
+    
+    elif ALGORITHMS == RS256_ALGORITHM:
+        refresh_token = jwt.encode(payload=payload, key=PRIVATE_KEY, algorithm=ALGORITHMS)
 
     return refresh_token
 
 
-def update_token(user_ip, user, token):
-
-    session = Session.objects.get(user=user, user_ip=user_ip)
-
-    if not token == session.refresh_token:
-        raise AuthenticationFailed('invalid token')
-
-    access_token = generate_access_token(user)
-    refresh_token = generate_refresh_token(user)
-
-    session.refresh_token = refresh_token
-    session.save()
-
-    response = {
-        'access': access_token,
-        'refresh': refresh_token
-    }
-
-    return response
-
-
-def create_jwt(request, user_ip, user):
-    header = request.headers.get("Authorization")
-
-    parts = header.split()
-    if len(parts) == 0:
-        return None
-    
-    jwt_token = update_token(user_ip, user, header)
-    return jwt_token
-
-
-def validate_token(token):
+def decode_access_token(access_token):
     try:
-        decoded = jwt.decode(token, TOKEN_SECRET_KEY, algorithms=ACCESS_TOKEN_ALGORITHMS)
+        if ALGORITHMS == HS256_ALGORITHM:
+            decoded = jwt.decode(access_token, ACCESS_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
+        elif ALGORITHMS == RS256_ALGORITHM:
+            decoded = jwt.decode(access_token, PUBLIC_KEY, algorithms=ALGORITHMS)
 
-        user_id = decoded['user_id']
-
-        try:
-            user = User.objects.filter(id=user_id).first()
-            
-        except User.DoesNotExist:
-            raise AuthenticationFailed('No such user')
-
-    except exceptions.ExpiredSignatureError:
-        raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
-        
     except Exception as e:
-        raise AuthenticationFailed(e)
-    
-    return user
+        raise jwt.exceptions.DecodeError(e)
 
 
-def check_session_activity(refresh_token):
-    
-    session = Session.objects.get(refresh_token=refresh_token)
+def decode_refresh_token(refresh_token):
+    try:
+        if ALGORITHMS == HS256_ALGORITHM:
+            decoded = jwt.decode(refresh_token, REFRESH_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
+        elif ALGORITHMS == RS256_ALGORITHM:
+            decoded = jwt.decode(refresh_token, PUBLIC_KEY, algorithms=ALGORITHMS)
+            
+    except Exception as e:
+        raise jwt.exceptions.DecodeError(e)
 
-    if session.active == False:
-        raise serializers.ValidationError('Please sign in')
 
