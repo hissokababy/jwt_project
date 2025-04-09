@@ -151,3 +151,15 @@ def auth_user(email, password, device_type):
         response = create_user_session(user, device_type=device_type)
     
     return response
+
+
+def verify_phone_email(phone, email, send_code):
+
+    user = User.objects.filter(email=email).first()
+
+    if user and send_code is False:
+        
+        ...
+
+    return True
+

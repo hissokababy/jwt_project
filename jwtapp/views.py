@@ -10,14 +10,14 @@ from django.contrib.auth import authenticate, login
 
 from django.contrib.auth.models import User
 from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
-                                MySessionsSerializer, RefreshTokenSerializer, 
+                                MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer,
                                 )
 
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
-                                      create_user_session, generate_user_tokens)
+                                      create_user_session, generate_user_tokens, verify_phone_email)
 from jwtapp.models import Session
 
 # Create your views here.
@@ -83,8 +83,22 @@ class GetNewTokensView(APIView):
 class ResetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    serializer_class = RefreshTokenSerializer
+    serializer_class = PasswordResetSerializer
 
+
+    def post(self, request):
+
+        serializer = self.serializer_class(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        phone = serializer.validated_data.get('phone')
+        email = serializer.validated_data.get('email')
+        send_code = serializer.validated_data.get('send_code')
+
+        response = verify_phone_email(email=email, phone=phone, send_code=send_code)
+
+        return Response('success')
 
 # РАБОТА С СЕССИЯМИ
 

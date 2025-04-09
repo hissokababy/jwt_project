@@ -22,7 +22,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name')
         extra_kwargs = {
             'first_name': {'required': True},
-            'last_name': {'required': True}
+            'last_name': {'required': True},
         }
 
     def validate(self, attrs):
@@ -63,11 +63,6 @@ class PasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField()
     send_code = serializers.BooleanField()
 
-    def validate_phone(self, value):
-        return value
-
-    def validate_phone(self, value):
-        return value
 
 # Работа с сессиями
 
@@ -75,7 +70,7 @@ class MySessionsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Session
-        fields = ('id', 'device_type', 'created_at', 'updated_at')
+        fields = ('id', 'device_type', 'created_at', 'updated_at', 'active','user')
 
 
 class CloseSessionSerializer(serializers.Serializer):

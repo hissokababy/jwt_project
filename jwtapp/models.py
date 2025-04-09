@@ -22,7 +22,7 @@ class Session(CommonInfo):
     active = models.BooleanField(default=True, verbose_name='Активная сессия')
 
     def __str__(self):
-        return f'Сессия пользователя: {self.user.username} | {self.active}'
+        return f'(id: {self.pk}) Сессия пользователя: {self.user.username} | {self.active}'
 
     class Meta:
         verbose_name = 'Сессия'
