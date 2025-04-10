@@ -39,7 +39,7 @@ class RefreshTokenSerializer(serializers.Serializer):
 class PasswordResetSerializer(serializers.Serializer):
     phone = serializers.CharField()
     email = serializers.EmailField()
-    send_code = serializers.BooleanField()
+    send_code = serializers.BooleanField(default=False)
 
 
 class CheckVerificationCodeSerializer(serializers.Serializer):

@@ -2,7 +2,6 @@ import jwt
 from jwtapp.models import Session
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
-import random
 
 
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
@@ -13,20 +12,7 @@ from rest_framework import serializers
 from jwtapp.models import Session, User
 from django.core.mail import send_mail
 
-from project_jwt.settings import DEFAULT_FROM_EMAIL
-
-
-def create_user_session(user):
-    access_token = generate_access_token(user)
-    refresh_token = generate_refresh_token(user)
-
-    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
-
-    response = {
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }
-    return response
+from project_jwt.settings import DEFAULT_FROM_EMAIL, MAILING_CODE
 
 
 def get_user(user_id):
@@ -155,9 +141,16 @@ def auth_user(phone, email, device_type, password):
         
 
     if not session_saved:
-        response = create_user_session(user, device_type=device_type)
-    
+        access_token = generate_access_token(user)
+        refresh_token = generate_refresh_token(user)
 
+        user_session = Session.objects.create(user=user, refresh_token=refresh_token)
+
+        response = {
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }
+    
     return response
 
 
@@ -250,7 +243,15 @@ def validate_register_data(validated_data):
     user.set_password(validated_data['password'])
     user.save()
 
-    response = create_user_session(user=user)
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
+
+    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
+
+    response = {
+        'access_token': access_token,
+        'refresh_token': refresh_token
+    }
 
     return response
 
@@ -279,7 +280,8 @@ def validate_session_id(session_id):
 
 
 def send_code_to_user(user):
-    code = random.randint(1111,9999)
+    code = MAILING_CODE
+    
     send_mail(
         "Subject here",
         f"Here is your code {code}",

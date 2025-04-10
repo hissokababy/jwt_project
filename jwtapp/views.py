@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from jwtapp.models import User
 from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
@@ -20,12 +21,12 @@ from jwtapp.services.sessions import (auth_user, close_session, close_session_by
 
 # Create your views here.
 
-
+@extend_schema(tags=["Auth"])
 class LoginView(APIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
-
+    
     def post(self, request, format=None):
         serializer = self.serializer_class(data=request.data)
 
@@ -37,7 +38,7 @@ class LoginView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-
+@extend_schema(tags=["Auth"])
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
@@ -51,7 +52,7 @@ class RegisterView(APIView):
         return Response(response, status=status.HTTP_201_CREATED)
 
 
-
+@extend_schema(tags=["Auth"])
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
     serializer_class = RefreshTokenSerializer
@@ -65,14 +66,14 @@ class RefreshTokenView(APIView):
         token = validate_refresh_token(*data)
 
         user_tokens = generate_user_tokens(token=token)
+
         return Response(user_tokens)
 
-# нужно доработать
+@extend_schema(tags=["Auth"])
 class ResetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     serializer_class = PasswordResetSerializer
-
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -85,12 +86,11 @@ class ResetPasswordView(APIView):
 
         return Response(response)
 
-
+@extend_schema(tags=["Auth"])
 class CheckVerificationCodeView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     serializer_class = CheckVerificationCodeSerializer
-
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -104,6 +104,7 @@ class CheckVerificationCodeView(APIView):
 
 # РАБОТА С СЕССИЯМИ
 
+@extend_schema(tags=["Session"])
 class MySessionsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -112,7 +113,7 @@ class MySessionsView(generics.ListAPIView):
     def get_queryset(self):
         return user_sessions(self.request.user)
 
-
+@extend_schema(tags=["Session"])
 class CloseSessionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -129,12 +130,13 @@ class CloseSessionView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
-
+@extend_schema(tags=["Session"])
 class CloseAllSessionsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     serializer_class = CloseAllSessionsSerializer
 
+    @extend_schema(tags=["Session"])
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -145,12 +147,13 @@ class CloseAllSessionsView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-
+@extend_schema(tags=["Session"])
 class CloseSessionByCredentialsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     serializer_class = CloseSessionByCredentialsSerializer
 
+    @extend_schema(tags=["Session"])
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -161,11 +164,12 @@ class CloseSessionByCredentialsView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-
+@extend_schema(tags=["Session"])
 class SessionLogoutView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RefreshTokenSerializer
 
+    @extend_schema(tags=["Session"])
     def post(self, request):
         try:
             serializer = self.serializer_class(data=request.data)
