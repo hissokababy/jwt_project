@@ -10,8 +10,12 @@ services:
       - "8000:8000"
     depends_on:
       - my-postgres
+    env_file:
+      - fileName
 
   my-postgres:
     image: postgres
+    expose:
+      - 5432
     environment:
       POSTGRES_PASSWORD: mypassword
