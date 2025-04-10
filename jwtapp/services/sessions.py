@@ -1,14 +1,19 @@
 import jwt
 from jwtapp.models import Session
 from rest_framework.exceptions import AuthenticationFailed
+from django.utils import timezone
+import random
 
-from project_jwt.settings import ALGORITHMS, ACCESS_TOKEN_SECRET_KEY, REFRESH_TOKEN_SECRET_KEY
+
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
 
 from jwt import exceptions
 from rest_framework import serializers
 
 from jwtapp.models import Session, User
+from django.core.mail import send_mail
+
+from project_jwt.settings import DEFAULT_FROM_EMAIL
 
 
 def create_user_session(user):
@@ -157,20 +162,11 @@ def auth_user(phone, email, device_type, password):
 
 
 def verify_phone_email(phone, email, send_code):
-
-    user = User.objects.filter(email=email).first()
-
-    if user and send_code is False:
-        
-        ...
-
-    return True
-
-
-def check_code_time(current_time):
-    ...
-
-
+    try:
+        user = User.objects.get(email=email, phone=phone)
+        return user
+    except User.DoesNotExist:
+        raise serializers.ValidationError('No such user')
 
 
 def update_token(user_ip, user, token):
@@ -219,7 +215,8 @@ def validate_token(access_token=None, refresh_token=None):
             return user
 
         elif refresh_token:
-            decoded = decode_refresh_token(refresh_token)
+
+            decoded = decode_refresh_token(refresh_token=refresh_token)
 
             user_id = decoded['user_id']
 
@@ -229,6 +226,9 @@ def validate_token(access_token=None, refresh_token=None):
 
     except User.DoesNotExist:
             raise AuthenticationFailed('No such user')
+
+    except exceptions.DecodeError:
+        raise AuthenticationFailed('Token expired')
 
     except exceptions.ExpiredSignatureError:
         raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
@@ -276,3 +276,53 @@ def validate_session_id(session_id):
         return session
     except Session.DoesNotExist:
         return False
+
+
+def send_code_to_user(user):
+    code = random.randint(1111,9999)
+    send_mail(
+        "Subject here",
+        f"Here is your code {code}",
+        from_email=DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+    user.send_code = code
+    user.time_send = timezone.now()
+    user.save()
+
+    response = {
+        'sended': True
+    }
+
+    return response
+
+
+
+def validate_code(phone, email, device_type, verification_code):
+    try:
+        user = User.objects.get(email=email, phone=phone, send_code=verification_code)
+    except User.DoesNotExist:
+        raise serializers.ValidationError('No such user')
+
+    time_send = user.time_send.timestamp() + 120
+    current_time = timezone.now().timestamp()
+
+    if current_time > time_send:
+        raise serializers.ValidationError('Code expired send new')
+    
+    for session in user.sessions.all():
+        if session.device_type == device_type:
+
+            access_token = generate_access_token(user)
+            refresh_token = generate_refresh_token(user)
+
+            session.refresh_token = refresh_token
+            session.save()
+
+            response = {
+                'access_token': access_token,
+                'refresh_token': refresh_token
+            }
+    return response

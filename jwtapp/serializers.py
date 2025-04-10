@@ -42,6 +42,13 @@ class PasswordResetSerializer(serializers.Serializer):
     send_code = serializers.BooleanField()
 
 
+class CheckVerificationCodeSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    email = serializers.EmailField()
+    device_type = serializers.CharField()
+    verification_code = serializers.CharField()
+
+
 # Работа с сессиями
 
 class MySessionsSerializer(serializers.ModelSerializer):

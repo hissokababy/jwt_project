@@ -6,7 +6,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from jwtapp.models import User
-from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
+from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
+                                CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer,
                                 )
@@ -14,7 +15,7 @@ from jwtapp.serializers import (CloseAllSessionsSerializer, CloseSessionByCreden
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
-                                    generate_user_tokens, user_sessions, validate_refresh_token, 
+                                    generate_user_tokens, send_code_to_user, user_sessions, validate_code, validate_refresh_token, 
                                     validate_register_data, validate_session_id, verify_phone_email)
 
 # Create your views here.
@@ -64,9 +65,7 @@ class RefreshTokenView(APIView):
         token = validate_refresh_token(*data)
 
         user_tokens = generate_user_tokens(token=token)
-
         return Response(user_tokens)
-
 
 # нужно доработать
 class ResetPasswordView(APIView):
@@ -76,18 +75,32 @@ class ResetPasswordView(APIView):
 
 
     def post(self, request):
-
         serializer = self.serializer_class(data=request.data)
-
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.values()
 
-        phone = serializer.validated_data.get('phone')
-        email = serializer.validated_data.get('email')
-        send_code = serializer.validated_data.get('send_code')
+        user = verify_phone_email(*data)
 
-        response = verify_phone_email(email=email, phone=phone, send_code=send_code)
+        response = send_code_to_user(user)
 
-        return Response('success')
+        return Response(response)
+
+
+class CheckVerificationCodeView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = CheckVerificationCodeSerializer
+
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.values()
+        
+        response = validate_code(*data)
+        return Response(response)
+
+
 
 # РАБОТА С СЕССИЯМИ
 
@@ -166,6 +179,4 @@ class SessionLogoutView(APIView):
         except Exception as e:
             return Response(e)
         
-
-
 

@@ -22,7 +22,7 @@ class CommonInfo(models.Model):
 class Session(CommonInfo):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions', verbose_name='Пользователь')
     user_ip = models.GenericIPAddressField(max_length=155, verbose_name='Ip устройства пользователя', blank=True, null=True, unique=True)
-    refresh_token = models.CharField(max_length=550, verbose_name='Refresh token', blank=True, null=True)
+    refresh_token = models.TextField(verbose_name='Refresh token', blank=True, null=True)
     device_type = models.CharField(max_length=150, verbose_name='Тип устройства', blank=True, null=True, default='mobile')
     active = models.BooleanField(default=True, verbose_name='Активная сессия')
 

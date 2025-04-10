@@ -1,5 +1,4 @@
 import jwt
-import time
 from django.utils import timezone
 
 from project_jwt.settings import (ALGORITHMS, 
@@ -50,6 +49,7 @@ def decode_access_token(access_token):
         elif ALGORITHMS == RS256_ALGORITHM:
             decoded = jwt.decode(access_token, PUBLIC_KEY, algorithms=ALGORITHMS)
 
+        return decoded
     except Exception as e:
         raise jwt.exceptions.DecodeError(e)
 
@@ -60,7 +60,9 @@ def decode_refresh_token(refresh_token):
             decoded = jwt.decode(refresh_token, REFRESH_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
         elif ALGORITHMS == RS256_ALGORITHM:
             decoded = jwt.decode(refresh_token, PUBLIC_KEY, algorithms=ALGORITHMS)
-            
+        
+        return decoded
+
     except Exception as e:
         raise jwt.exceptions.DecodeError(e)
 
