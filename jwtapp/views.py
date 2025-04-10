@@ -4,7 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from jwtapp.models import User
 from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
@@ -26,7 +27,7 @@ class LoginView(APIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
-    
+
     def post(self, request, format=None):
         serializer = self.serializer_class(data=request.data)
 
