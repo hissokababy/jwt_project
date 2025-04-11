@@ -31,6 +31,9 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, validators=[validate_password])
 
 
+class ResponseLoginSerializer(serializers.Serializer):
+    access_token = serializers.CharField()
+    refresh_token = serializers.CharField()
 
 class RefreshTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
@@ -40,6 +43,11 @@ class PasswordResetSerializer(serializers.Serializer):
     phone = serializers.CharField()
     email = serializers.EmailField()
     send_code = serializers.BooleanField(default=False)
+
+
+class ResponsePasswordResetSerializer(serializers.Serializer):
+    send_code = serializers.BooleanField(default=True)
+
 
 
 class CheckVerificationCodeSerializer(serializers.Serializer):
@@ -60,6 +68,9 @@ class MySessionsSerializer(serializers.ModelSerializer):
 
 class CloseSessionSerializer(serializers.Serializer):
     session_id = serializers.IntegerField()
+
+class ResponseCloseSessionSerializer(serializers.Serializer):
+    closed = serializers.BooleanField(default=True)
 
 
 class CloseAllSessionsSerializer(serializers.Serializer):

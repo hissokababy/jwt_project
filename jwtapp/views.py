@@ -4,14 +4,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema
 
 from jwtapp.models import User
 from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
                                 CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
-                                RegisterSerializer,
+                                RegisterSerializer, ResponseCloseSessionSerializer, ResponseLoginSerializer, ResponsePasswordResetSerializer
                                 )
 
 from jwtapp.authentication import JWTAuthentication
@@ -22,7 +21,7 @@ from jwtapp.services.sessions import (auth_user, close_session, close_session_by
 
 # Create your views here.
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class LoginView(APIView):
     queryset = User.objects.all()
     permission_classes = [AllowAny]
@@ -39,7 +38,7 @@ class LoginView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
@@ -53,7 +52,7 @@ class RegisterView(APIView):
         return Response(response, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
     serializer_class = RefreshTokenSerializer
@@ -70,7 +69,8 @@ class RefreshTokenView(APIView):
 
         return Response(user_tokens)
 
-@extend_schema(tags=["Auth"])
+
+@extend_schema(tags=["Auth"], responses=ResponsePasswordResetSerializer)
 class ResetPasswordView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -87,7 +87,7 @@ class ResetPasswordView(APIView):
 
         return Response(response)
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class CheckVerificationCodeView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -114,7 +114,8 @@ class MySessionsView(generics.ListAPIView):
     def get_queryset(self):
         return user_sessions(self.request.user)
 
-@extend_schema(tags=["Session"])
+
+@extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class CloseSessionView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -131,7 +132,7 @@ class CloseSessionView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
-@extend_schema(tags=["Session"])
+@extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class CloseAllSessionsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -148,7 +149,7 @@ class CloseAllSessionsView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-@extend_schema(tags=["Session"])
+@extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class CloseSessionByCredentialsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -165,7 +166,7 @@ class CloseSessionByCredentialsView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
-@extend_schema(tags=["Session"])
+@extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class SessionLogoutView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RefreshTokenSerializer
