@@ -25,8 +25,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    phone = serializers.CharField()
-    email = serializers.EmailField()
+    phone = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
     device_type = serializers.CharField()
     password = serializers.CharField(required=True, validators=[validate_password])
 
@@ -40,9 +40,8 @@ class RefreshTokenSerializer(serializers.Serializer):
     
 
 class PasswordResetSerializer(serializers.Serializer):
-    phone = serializers.CharField()
+    phone = serializers.CharField(required=False)
     email = serializers.EmailField()
-    send_code = serializers.BooleanField(default=False)
 
 
 class ResponsePasswordResetSerializer(serializers.Serializer):

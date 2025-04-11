@@ -1,8 +1,19 @@
+import random
 import jwt
 from jwtapp.models import Session
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, APIException
+from rest_framework import status
 from django.utils import timezone
 
+class DoesExsistUser(APIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = ('A server error occurred.')
+    default_code = 'error'
+
+class InActiveSession(APIException):
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = ('Inactive session.')
+    default_code = 'error'
 
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
 
@@ -10,16 +21,7 @@ from jwt import exceptions
 from rest_framework import serializers
 
 from jwtapp.models import Session, User
-from django.core.mail import send_mail
 
-from project_jwt.settings import DEFAULT_FROM_EMAIL, MAILING_CODE
-
-
-def get_user(user_id):
-    user = User.objects.filter(id=user_id).first()
-
-    if user:
-        return user
 
 
 def generate_user_tokens(token):
@@ -27,7 +29,7 @@ def generate_user_tokens(token):
     try:    
         session = Session.objects.get(refresh_token=token)
 
-        if session.user.is_active and session.active == True:
+        if session.user.is_active and session.active:
 
             access_token = generate_access_token(session.user)
             refresh_token = generate_refresh_token(session.user)
@@ -70,26 +72,33 @@ def close_session(session_id=None, refresh_token=None):
         raise serializers.ValidationError('Session does not exist')
 
 
-
-
 def close_sessions(current_session_id):
+    try:
+        current_session = Session.objects.get(pk=current_session_id)
+    except Session.DoesNotExist:
+        raise DoesExsistUser
 
-    user_sessions = [i for i in Session.objects.get(pk=current_session_id).user.sessions.all()]
+    if not current_session.active:
+        raise InActiveSession
+    
+    user_sessions = Session.objects.filter(user=current_session.user, active=True).exclude(pk=current_session.id)
+
+    sessions = []
 
     for session in user_sessions:
-        if session.pk != current_session_id:
-            session.active = False
-        
-        session.save()
+        session.active = False
+        sessions.append(session)
+
+    updated = Session.objects.bulk_update(sessions, fields=['active'])
     
     response = {
-        "results": {"closed": True}}
+        "results": {"close;';d": True}}
 
     return response
 
 
 
-def close_session_by_credentials(session_id, phone, email, password):
+def close_session_by_credentials(session_id, email, password):
     
     try:
         session = Session.objects.get(pk=session_id)
@@ -113,7 +122,7 @@ def close_session_by_credentials(session_id, phone, email, password):
     return response
 
 
-def auth_user(phone, email, device_type, password):
+def auth_user(email, device_type, password):
 
     user = User.objects.get(email=email)
     verified = user.check_password(raw_password=password)
@@ -154,46 +163,12 @@ def auth_user(phone, email, device_type, password):
     return response
 
 
-def verify_phone_email(phone, email, send_code):
+def verify_phone_email(email):
     try:
-        user = User.objects.get(email=email, phone=phone)
+        user = User.objects.get(email=email)
         return user
     except User.DoesNotExist:
         raise serializers.ValidationError('No such user')
-
-
-def update_token(user_ip, user, token):
-    try:
-        session = Session.objects.get(user=user, user_ip=user_ip)
-    except Session.DoesNotExist:
-        raise serializers.ValidationError('Session DoesNotExist')
-
-    if not token == session.refresh_token:
-        raise AuthenticationFailed('invalid token')
-
-    access_token = generate_access_token(user)
-    refresh_token = generate_refresh_token(user)
-
-    session.refresh_token = refresh_token
-    session.save()
-
-    response = {
-        'access': access_token,
-        'refresh': refresh_token
-    }
-
-    return response
-
-
-def create_jwt(request, user_ip, user):
-    header = request.headers.get("Authorization")
-
-    parts = header.split()
-    if len(parts) == 0:
-        return None
-    
-    jwt_token = update_token(user_ip, user, header)
-    return jwt_token
 
 
 def validate_token(access_token=None, refresh_token=None):
@@ -226,7 +201,6 @@ def validate_token(access_token=None, refresh_token=None):
     except exceptions.ExpiredSignatureError:
         raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
         
-    
 
 def validate_register_data(validated_data):
 
@@ -280,17 +254,11 @@ def validate_session_id(session_id):
 
 
 def send_code_to_user(user):
-    code = MAILING_CODE
+    MAILING_CODE = random.randint(1111,9999)
     
-    send_mail(
-        "Subject here",
-        f"Here is your code {code}",
-        from_email=DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+    send_code_to_user(user, MAILING_CODE)
 
-    user.send_code = code
+    user.send_code = MAILING_CODE
     user.time_send = timezone.now()
     user.save()
 
@@ -302,9 +270,9 @@ def send_code_to_user(user):
 
 
 
-def validate_code(phone, email, device_type, verification_code):
+def validate_code(email, device_type, verification_code):
     try:
-        user = User.objects.get(email=email, phone=phone, send_code=verification_code)
+        user = User.objects.get(email=email, send_code=verification_code)
     except User.DoesNotExist:
         raise serializers.ValidationError('No such user')
 
@@ -313,18 +281,16 @@ def validate_code(phone, email, device_type, verification_code):
 
     if current_time > time_send:
         raise serializers.ValidationError('Code expired send new')
+
     
-    for session in user.sessions.all():
-        if session.device_type == device_type:
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
 
-            access_token = generate_access_token(user)
-            refresh_token = generate_refresh_token(user)
+    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
 
-            session.refresh_token = refresh_token
-            session.save()
+    response = {
+        'access_token': access_token,
+        'refresh_token': refresh_token
+    }
 
-            response = {
-                'access_token': access_token,
-                'refresh_token': refresh_token
-            }
     return response

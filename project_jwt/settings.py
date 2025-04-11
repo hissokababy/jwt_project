@@ -203,11 +203,6 @@ SERVER_EMAIL = EMAIL_HOST_USER
 EMAIL_ADMIN = EMAIL_HOST_USER
 
 
-
-
-MAILING_CODE = random.randint(1111,9999)
-
-
 PRIVATE_KEY = pem.parse_file("private_key.pem")[0]
 PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
 

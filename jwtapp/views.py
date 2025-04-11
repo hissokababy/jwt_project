@@ -159,6 +159,7 @@ class CloseSessionByCredentialsView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
         validate_session_id(serializer.validated_data['session_id'])
         data = serializer.validated_data.values()
 

@@ -5,7 +5,7 @@ from django.contrib.auth.models import User, AbstractUser
 # Create your models here.
 
 class User(AbstractUser):
-    phone = models.CharField(max_length=50, verbose_name='Номер телефона', blank=True, null=True)
+    phone = models.CharField(max_length=50, verbose_name='Номер телефона', blank=True, null=True, unique=True)
     send_code = models.IntegerField(verbose_name='Код подтверждения', blank=True, null=True)
     time_send = models.DateTimeField(verbose_name='Дата отправки кода', blank=True, null=True)
     avatar = models.ImageField
