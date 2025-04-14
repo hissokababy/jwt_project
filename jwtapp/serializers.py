@@ -83,3 +83,9 @@ class CloseSessionByCredentialsSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(required=True, validators=[validate_password])
 
+
+class ChangeProfilePhotoSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    photo = serializers.FileField()
+    width = serializers.IntegerField(required=False)
+    height = serializers.IntegerField(required=False)

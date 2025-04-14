@@ -4,7 +4,8 @@ from jwtapp.views import (RegisterView, MySessionsView,
                            RefreshTokenView, LoginView,
                            SessionLogoutView, CloseSessionView,
                            CloseAllSessionsView, CloseSessionByCredentialsView,
-                           ResetPasswordView, CheckVerificationCodeView)
+                           ResetPasswordView, CheckVerificationCodeView,
+                           ChangeProfilePhotoView)
 
 urlpatterns = [
 
@@ -20,4 +21,7 @@ urlpatterns = [
     path('api/v1/auth/sessions/close-all/', CloseAllSessionsView.as_view()),
     path('api/v1/auth/sessions/close-by-credentials/', CloseSessionByCredentialsView.as_view()),
     path('api/v1/auth/sessions/log-out/', SessionLogoutView.as_view()),
+
+    path('api/v1/change_profile_photo/', ChangeProfilePhotoView.as_view())
+    
 ]

@@ -8,7 +8,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=50, verbose_name='Номер телефона', blank=True, null=True, unique=True)
     send_code = models.IntegerField(verbose_name='Код подтверждения', blank=True, null=True)
     time_send = models.DateTimeField(verbose_name='Дата отправки кода', blank=True, null=True)
-    avatar = models.ImageField
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
 
 
 class CommonInfo(models.Model):

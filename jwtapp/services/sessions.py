@@ -1,19 +1,10 @@
 import random
-import jwt
 from jwtapp.models import Session
 from rest_framework.exceptions import AuthenticationFailed, APIException
 from rest_framework import status
 from django.utils import timezone
 
-class DoesExsistUser(APIException):
-    status_code = status.HTTP_404_NOT_FOUND
-    default_detail = ('A server error occurred.')
-    default_code = 'error'
-
-class InActiveSession(APIException):
-    status_code = status.HTTP_404_NOT_FOUND
-    default_detail = ('Inactive session.')
-    default_code = 'error'
+from jwtapp.utils import send_user_message
 
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
 
@@ -21,43 +12,41 @@ from jwt import exceptions
 from rest_framework import serializers
 
 from jwtapp.models import Session, User
+from jwtapp.exeptions import DoesExsistUser, InActiveSession
 
 
 
 def generate_user_tokens(token):
+    decoded = decode_refresh_token(token)
+    user_id = decoded['user_id']
 
-    try:    
-        session = Session.objects.get(refresh_token=token)
-
-        if session.user.is_active and session.active:
-
-            access_token = generate_access_token(session.user)
-            refresh_token = generate_refresh_token(session.user)
-
-            response = {
-                'access': access_token,
-                'refresh': refresh_token
-            }
-
-            session.refresh_token = refresh_token
-            session.save()
-        
-            return response
-        
-        else:
-            raise serializers.ValidationError('Inactive session')
+    try:
+        user = User.objects.get(pk=user_id)
+    except:
+        raise DoesExsistUser
     
-    except Session.DoesNotExist:
-        raise serializers.ValidationError('Session not found')
+    
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
 
-    except Exception as e:
-        raise serializers.ValidationError(e)
+    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
+
+    response = {
+        'access_token': access_token,
+        'refresh_token': refresh_token
+    }
+
+    return response
 
 
 def close_session(session_id=None, refresh_token=None):
     try:
         if session_id:
-            session = Session.objects.get(pk=session_id)
+            try:
+                session = Session.objects.get(pk=session_id)
+            except Session.DoesNotExist:
+                return DoesExsistUser
+
         elif refresh_token:
             session = Session.objects.get(refresh_token=refresh_token)
 
@@ -163,14 +152,6 @@ def auth_user(email, device_type, password):
     return response
 
 
-def verify_phone_email(email):
-    try:
-        user = User.objects.get(email=email)
-        return user
-    except User.DoesNotExist:
-        raise serializers.ValidationError('No such user')
-
-
 def validate_token(access_token=None, refresh_token=None):
     try:
         if access_token:
@@ -245,18 +226,15 @@ def user_sessions(user):
     return Session.objects.filter(user=user)
 
 
-def validate_session_id(session_id):
+def send_code_to_user(email):
     try:
-        session = Session.objects.get(pk=session_id)
-        return session
-    except Session.DoesNotExist:
-        return False
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        raise serializers.ValidationError('No such user')
 
-
-def send_code_to_user(user):
     MAILING_CODE = random.randint(1111,9999)
     
-    send_code_to_user(user, MAILING_CODE)
+    send_user_message(user, MAILING_CODE)
 
     user.send_code = MAILING_CODE
     user.time_send = timezone.now()
@@ -270,7 +248,7 @@ def send_code_to_user(user):
 
 
 
-def validate_code(email, device_type, verification_code):
+def validate_code(email, verification_code):
     try:
         user = User.objects.get(email=email, send_code=verification_code)
     except User.DoesNotExist:

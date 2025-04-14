@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from jwtapp.models import User
-from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
+from jwtapp.serializers import (ChangeProfilePhotoSerializer, CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
                                 CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
                                 RegisterSerializer, ResponseCloseSessionSerializer, ResponseLoginSerializer, ResponsePasswordResetSerializer
@@ -16,8 +16,9 @@ from jwtapp.serializers import (CheckVerificationCodeSerializer, CloseAllSession
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
-                                    generate_user_tokens, send_code_to_user, user_sessions, validate_code, validate_refresh_token, 
-                                    validate_register_data, validate_session_id, verify_phone_email)
+                                    generate_user_tokens, send_code_to_user, user_sessions, validate_code, 
+                                    validate_register_data,)
+from jwtapp.utils import change_user_photo
 
 # Create your views here.
 
@@ -60,12 +61,8 @@ class RefreshTokenView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        data = serializer.validated_data.values()
         
-        token = validate_refresh_token(*data)
-
-        user_tokens = generate_user_tokens(token=token)
+        user_tokens = generate_user_tokens(token=serializer.validated_data['refresh_token'])
 
         return Response(user_tokens)
 
@@ -81,9 +78,7 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data.values()
 
-        user = verify_phone_email(*data)
-
-        response = send_code_to_user(user)
+        response = send_code_to_user(*data)
 
         return Response(response)
 
@@ -124,11 +119,8 @@ class CloseSessionView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data.values()
 
-        session = validate_session_id(*data)
-
-        response = close_session(session_id=session.id)
+        response = close_session(session_id=serializer.validated_data['session_id'])
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
@@ -138,14 +130,12 @@ class CloseAllSessionsView(APIView):
     authentication_classes = [JWTAuthentication]
     serializer_class = CloseAllSessionsSerializer
 
-    @extend_schema(tags=["Session"])
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data.values()
-        current_session = validate_session_id(*data)
 
-        response = close_sessions(current_session.id)
+        response = close_sessions(*data)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
@@ -155,24 +145,22 @@ class CloseSessionByCredentialsView(APIView):
     authentication_classes = [JWTAuthentication]
     serializer_class = CloseSessionByCredentialsSerializer
 
-    @extend_schema(tags=["Session"])
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        validate_session_id(serializer.validated_data['session_id'])
         data = serializer.validated_data.values()
 
         response = close_session_by_credentials(*data)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
+    
 
 @extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class SessionLogoutView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = RefreshTokenSerializer
 
-    @extend_schema(tags=["Session"])
     def post(self, request):
         try:
             serializer = self.serializer_class(data=request.data)
@@ -187,3 +175,15 @@ class SessionLogoutView(APIView):
             return Response(e)
         
 
+
+class ChangeProfilePhotoView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = ChangeProfilePhotoSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        change_user_photo(*serializer.validated_data.values())
+        return Response(status=status.HTTP_200_OK)
