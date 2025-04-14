@@ -85,7 +85,5 @@ class CloseSessionByCredentialsSerializer(serializers.Serializer):
 
 
 class ChangeProfilePhotoSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField()
     photo = serializers.FileField()
-    width = serializers.IntegerField(required=False)
-    height = serializers.IntegerField(required=False)
+    quality = serializers.IntegerField(required=False)

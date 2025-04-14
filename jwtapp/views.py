@@ -16,9 +16,9 @@ from jwtapp.serializers import (ChangeProfilePhotoSerializer, CheckVerificationC
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
-                                    generate_user_tokens, send_code_to_user, user_sessions, validate_code, 
+                                    generate_user_tokens, send_code_to_user, set_user_photo, user_sessions, validate_code, 
                                     validate_register_data,)
-from jwtapp.utils import change_user_photo
+from jwtapp.utils import edit_photo
 
 # Create your views here.
 
@@ -185,5 +185,7 @@ class ChangeProfilePhotoView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        change_user_photo(*serializer.validated_data.values())
-        return Response(status=status.HTTP_200_OK)
+        photo = edit_photo(serializer.validated_data)
+        set_user_photo(request.user, photo)
+
+        return Response('Profile photo was set', status=status.HTTP_200_OK)

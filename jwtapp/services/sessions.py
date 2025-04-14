@@ -1,7 +1,6 @@
 import random
 from jwtapp.models import Session
-from rest_framework.exceptions import AuthenticationFailed, APIException
-from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
 
 from jwtapp.utils import send_user_message
@@ -272,3 +271,13 @@ def validate_code(email, verification_code):
     }
 
     return response
+
+
+def set_user_photo(user, photo):
+    try:
+        user = User.objects.get(pk=user.id)
+    except User.DoesNotExist:
+        raise serializers.ValidationError('No such user')
+
+    user.avatar = photo
+    user.save()

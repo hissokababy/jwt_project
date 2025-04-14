@@ -6,3 +6,6 @@ postgres/
 
 jwtRS256.key
 jwtRS256.key.pub
+
+private_key.pem
+public_key.pem
