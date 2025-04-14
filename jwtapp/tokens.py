@@ -1,6 +1,7 @@
 import jwt
 from django.utils import timezone
 
+from jwtapp.exeptions import InvalidTokenExeption
 from project_jwt.settings import (ALGORITHMS, 
                                   ACCESS_TOKEN_EXPIRE, ACCESS_TOKEN_SECRET_KEY, 
                                   REFRESH_TOKEN_EXPIRE, REFRESH_TOKEN_SECRET_KEY,
@@ -50,8 +51,8 @@ def decode_access_token(access_token):
             decoded = jwt.decode(access_token, str(PUBLIC_KEY), algorithms=ALGORITHMS)
 
         return decoded
-    except Exception as e:
-        raise jwt.exceptions.DecodeError(e)
+    except jwt.exceptions.ExpiredSignatureError or jwt.exceptions.DecodeError as e:
+        raise InvalidTokenExeption(e)
 
 
 def decode_refresh_token(refresh_token):

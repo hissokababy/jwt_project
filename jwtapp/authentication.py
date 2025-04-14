@@ -1,6 +1,6 @@
 from rest_framework.authentication import BaseAuthentication
 
-from jwtapp.services.sessions import validate_token
+from jwtapp.services.sessions import validate_access_token
 from project_jwt.settings import TOKEN_AUTH_HEADER
 
 
@@ -35,5 +35,5 @@ class JWTAuthentication(BaseAuthentication):
         return parts[1]
 
     def validate_token_auth(self, token):
-        user = validate_token(access_token=token)
+        user = validate_access_token(access_token=token)
         return user

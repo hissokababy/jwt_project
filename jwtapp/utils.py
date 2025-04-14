@@ -16,20 +16,17 @@ def send_user_message(user, code):
 )
 
 
-def edit_photo(validated_data):
-    photo = Image.open(validated_data['photo'])
-    quality = validated_data.get('quality')
+def edit_photo(photo, name, sizes=(1920, 1080), quality=80):
 
-    sizes = (1920, 1080)
+    photo = Image.open(photo)
+
     if photo.size < sizes:
-        photo = photo.resize((1920, 1080))
+        photo = photo.resize(sizes)
 
-    if not quality:
-        quality = 80
-    
     photo.format = 'webp'
 
-    name = '.'.join(validated_data['photo'].name.split('.')[:-1]) + '.webp'
+    if not name:
+        name = '.'.join(photo.name.split('.')[:-1]) + '.webp'
 
     thumb_io = BytesIO()
     photo.save(thumb_io, 'webp', quality=quality)

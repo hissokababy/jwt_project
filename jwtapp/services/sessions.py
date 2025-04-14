@@ -1,34 +1,30 @@
 import random
 from jwtapp.models import Session
-from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
 
 from jwtapp.utils import send_user_message
 
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
 
-from jwt import exceptions
 from rest_framework import serializers
 
 from jwtapp.models import Session, User
-from jwtapp.exeptions import DoesExsistUser, InActiveSession
+from jwtapp.exeptions import NoUserExists, InvalidSessionExeption
 
 
 
-def generate_user_tokens(token):
+def generate_user_tokens(user, token):
     decoded = decode_refresh_token(token)
-    user_id = decoded['user_id']
 
-    try:
-        user = User.objects.get(pk=user_id)
-    except:
-        raise DoesExsistUser
+    user = get_user(user.id)
     
-    
+    if user.id != decoded['user_id']:
+        raise InvalidSessionExeption('Invalid session id')
+
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)
 
-    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
+    create_user_session(user, refresh_token)
 
     response = {
         'access_token': access_token,
@@ -38,38 +34,43 @@ def generate_user_tokens(token):
     return response
 
 
-def close_session(session_id=None, refresh_token=None):
-    try:
-        if session_id:
-            try:
-                session = Session.objects.get(pk=session_id)
-            except Session.DoesNotExist:
-                return DoesExsistUser
+def close_session(user=None, session_id=None, refresh_token=None):
+    user = get_user(user.id)
 
-        elif refresh_token:
-            session = Session.objects.get(refresh_token=refresh_token)
+    if session_id:
+        try:
+            session = Session.objects.get(pk=session_id, user=user)
+        except Session.DoesNotExist:
+            raise InvalidSessionExeption('Session does not exist')
 
-        session.active = False
-        session.save()
-
-        response = {
-        "results": {"closed": True}}
-        return response
+    elif refresh_token:
+        try:
+            session = Session.objects.get(refresh_token=refresh_token, user=user)
+        except Session.DoesNotExist:
+            raise InvalidSessionExeption('Session does not exist')
     
-    except Session.DoesNotExist:
-        raise serializers.ValidationError('Session does not exist')
+    session.active = False
+    session.save()
+
+    response = {
+        "results": {"closed": True}}
+    
+    return response
+    
 
 
-def close_sessions(current_session_id):
+def close_sessions(user, current_session_id):
+    user = get_user(user.id)
+
     try:
-        current_session = Session.objects.get(pk=current_session_id)
+        current_session = Session.objects.get(pk=current_session_id, user=user)
     except Session.DoesNotExist:
-        raise DoesExsistUser
+        raise InvalidSessionExeption('Session does not exist')
 
     if not current_session.active:
-        raise InActiveSession
+        raise InvalidSessionExeption
     
-    user_sessions = Session.objects.filter(user=current_session.user, active=True).exclude(pk=current_session.id)
+    user_sessions = Session.objects.filter(user=user, active=True).exclude(pk=current_session.id)
 
     sessions = []
 
@@ -80,26 +81,25 @@ def close_sessions(current_session_id):
     updated = Session.objects.bulk_update(sessions, fields=['active'])
     
     response = {
-        "results": {"close;';d": True}}
+        "results": {"closed": True}}
 
     return response
 
 
 
-def close_session_by_credentials(session_id, email, password):
-    
-    try:
-        session = Session.objects.get(pk=session_id)
-        user = User.objects.get(email=email)
+def close_session_by_credentials(user, session_id, email, password):
+    user = User.objects.get(email=email, pk=user.id)
 
-    except Session.DoesNotExist or User.DoesNotExist:
-        raise serializers.ValidationError('Matching query does not exist')
-    
+    try:
+        session = Session.objects.get(pk=session_id, user=user)
+
+    except Session.DoesNotExist:
+        raise InvalidSessionExeption('No session exists')
     
     verified = session.user.check_password(raw_password=password)
 
     if verified is False:
-        return None
+        raise NoUserExists('Wrong password')
     
     session.active = False
     session.save()
@@ -110,126 +110,72 @@ def close_session_by_credentials(session_id, email, password):
     return response
 
 
-def auth_user(email, device_type, password):
-
-    user = User.objects.get(email=email)
+def auth_user(email, password):
+    try:
+        user = User.objects.get(email=email)
+    except:
+        raise NoUserExists('Wrong email')
+    
     verified = user.check_password(raw_password=password)
 
-    if verified is False:
-        return None
-    
-    session_saved = None
-
-    for session in user.sessions.all():
-        if session.device_type == device_type:
-            session.active = True
-
-            access_token = generate_access_token(user)
-            refresh_token = generate_refresh_token(user)
-
-            session.refresh_token = refresh_token
-            session.save()
-            session_saved = True
-    
-            response = {
-                'access_token': access_token,
-                'refresh_token': refresh_token
-            }
-        
-
-    if not session_saved:
-        access_token = generate_access_token(user)
-        refresh_token = generate_refresh_token(user)
-
-        user_session = Session.objects.create(user=user, refresh_token=refresh_token)
-
-        response = {
-            'access_token': access_token,
-            'refresh_token': refresh_token
-        }
-    
-    return response
-
-
-def validate_token(access_token=None, refresh_token=None):
-    try:
-        if access_token:
-            decoded = decode_access_token(access_token)
-
-            user_id = decoded['user_id']
-
-            user = User.objects.get(id=user_id)
-            
-            return user
-
-        elif refresh_token:
-
-            decoded = decode_refresh_token(refresh_token=refresh_token)
-
-            user_id = decoded['user_id']
-
-            user = User.objects.get(id=user_id)
-            
-            return refresh_token
-
-    except User.DoesNotExist:
-            raise AuthenticationFailed('No such user')
-
-    except exceptions.DecodeError:
-        raise AuthenticationFailed('Token expired')
-
-    except exceptions.ExpiredSignatureError:
-        raise AuthenticationFailed(exceptions.ExpiredSignatureError.__name__)
-        
-
-def validate_register_data(validated_data):
-
-    if validated_data['password'] != validated_data['password2']:
-        raise serializers.ValidationError({"password": "Password fields didn't match."})
-
-    user = User.objects.create(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name']
-        )
-        
-    user.set_password(validated_data['password'])
-    user.save()
+    if not verified:
+        raise NoUserExists(detail='Invalid password')
 
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)
 
-    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
+    create_user_session(user=user, refresh_token=refresh_token)
 
     response = {
         'access_token': access_token,
         'refresh_token': refresh_token
     }
-
+    
     return response
 
 
+def validate_access_token(access_token):
+    decoded = decode_access_token(access_token)
+
+    user = get_user(user_id=decoded['user_id'])
+            
+    return user
+
+
 def validate_refresh_token(refresh_token):
+    decoded = decode_refresh_token(refresh_token=refresh_token)
 
-    try:
-        refresh_token = validate_token(refresh_token=refresh_token)
+    user = get_user(user_id=decoded['user_id'])
+            
+    return user
 
-    except Exception as e:
-        raise serializers.ValidationError(e)
-    
-    return refresh_token 
+        
+
+def validate_register_data(username, password1, password2, email, first_name, last_name):
+
+    if password1 != password2:
+        raise serializers.ValidationError({"password": "Password fields didn't match."})
+
+    user = User.objects.create(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name
+        )
+        
+    user.set_password(password1)
+    user.save()
 
 
 def user_sessions(user):
     return Session.objects.filter(user=user)
 
 
-def send_code_to_user(email):
+def send_code_to_user(user, email):
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(pk=user.id, email=email)
     except User.DoesNotExist:
-        raise serializers.ValidationError('No such user')
+        raise NoUserExists('Wrong email')
 
     MAILING_CODE = random.randint(1111,9999)
     
@@ -247,37 +193,49 @@ def send_code_to_user(email):
 
 
 
-def validate_code(email, verification_code):
+def validate_code(user, email, verification_code, new_password, confirm_password):
+    if new_password != confirm_password:
+        raise serializers.ValidationError({"password": "Password fields didn't match."})
+
     try:
-        user = User.objects.get(email=email, send_code=verification_code)
+        user = User.objects.get(email=email, send_code=verification_code, pk=user.id)
     except User.DoesNotExist:
-        raise serializers.ValidationError('No such user')
+        raise NoUserExists('Invalid data')
 
     time_send = user.time_send.timestamp() + 120
     current_time = timezone.now().timestamp()
 
+    user.set_password(new_password)
+    user.save()
+
     if current_time > time_send:
-        raise serializers.ValidationError('Code expired send new')
-
+        raise serializers.ValidationError('Code expired')
     
-    access_token = generate_access_token(user)
-    refresh_token = generate_refresh_token(user)
-
-    user_session = Session.objects.create(user=user, refresh_token=refresh_token)
-
-    response = {
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }
-
-    return response
-
 
 def set_user_photo(user, photo):
-    try:
-        user = User.objects.get(pk=user.id)
-    except User.DoesNotExist:
-        raise serializers.ValidationError('No such user')
+
+    user = get_user(user_id=user.id)
 
     user.avatar = photo
     user.save()
+
+
+def get_user(user_id):
+    try:
+        user = User.objects.get(pk=user_id)
+        return user
+    except:
+        raise NoUserExists
+
+def create_user_session(user, refresh_token):
+    user_sessions = Session.objects.filter(user=user).count()
+
+    print(user_sessions)
+
+    if user_sessions >= 3:
+        raise InvalidSessionExeption('Please delete one session to continue')
+    
+    session = Session.objects.create(user=user, refresh_token=refresh_token)
+    session.active = True
+    session.save()
+    return session

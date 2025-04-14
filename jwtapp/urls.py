@@ -11,7 +11,7 @@ urlpatterns = [
 
 
     path('api/v1/auth/register/', RegisterView.as_view(), name='auth_register'),
-    path('api/v1/auth/login/', LoginView.as_view()),
+    path('api/v1/auth/login/', LoginView.as_view(), name='auth_login'),
     path('api/v1/auth/refresh-token/', RefreshTokenView.as_view()),
     path('api/v1/auth/password-reset/', ResetPasswordView.as_view()),
     path('api/v1/auth/check-verification-code/', CheckVerificationCodeView.as_view()),

@@ -25,9 +25,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    phone = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
-    device_type = serializers.CharField()
+    device_type = serializers.CharField(required=False)
     password = serializers.CharField(required=True, validators=[validate_password])
 
 
@@ -40,7 +39,6 @@ class RefreshTokenSerializer(serializers.Serializer):
     
 
 class PasswordResetSerializer(serializers.Serializer):
-    phone = serializers.CharField(required=False)
     email = serializers.EmailField()
 
 
@@ -50,10 +48,11 @@ class ResponsePasswordResetSerializer(serializers.Serializer):
 
 
 class CheckVerificationCodeSerializer(serializers.Serializer):
-    phone = serializers.CharField()
     email = serializers.EmailField()
-    device_type = serializers.CharField()
+    device_type = serializers.CharField(required=False)
     verification_code = serializers.CharField()
+    new_password = serializers.CharField(validators=[validate_password])
+    confirm_password = serializers.CharField()
 
 
 # Работа с сессиями
@@ -86,4 +85,4 @@ class CloseSessionByCredentialsSerializer(serializers.Serializer):
 
 class ChangeProfilePhotoSerializer(serializers.Serializer):
     photo = serializers.FileField()
-    quality = serializers.IntegerField(required=False)
+    name = serializers.CharField(required=False)

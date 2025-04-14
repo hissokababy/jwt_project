@@ -5,7 +5,6 @@ from django.contrib.auth.models import User, AbstractUser
 # Create your models here.
 
 class User(AbstractUser):
-    phone = models.CharField(max_length=50, verbose_name='Номер телефона', blank=True, null=True, unique=True)
     send_code = models.IntegerField(verbose_name='Код подтверждения', blank=True, null=True)
     time_send = models.DateTimeField(verbose_name='Дата отправки кода', blank=True, null=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
@@ -24,7 +23,7 @@ class Session(CommonInfo):
     user_ip = models.GenericIPAddressField(max_length=155, verbose_name='Ip устройства пользователя', blank=True, null=True, unique=True)
     refresh_token = models.TextField(verbose_name='Refresh token', blank=True, null=True)
     device_type = models.CharField(max_length=150, verbose_name='Тип устройства', blank=True, null=True, default='mobile')
-    active = models.BooleanField(default=True, verbose_name='Активная сессия')
+    active = models.BooleanField(default=False, verbose_name='Активная сессия')
 
     def __str__(self):
         return f'(id: {self.pk}) Сессия пользователя: {self.user.username} | {self.active}'

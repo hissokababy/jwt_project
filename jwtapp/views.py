@@ -20,6 +20,7 @@ from jwtapp.services.sessions import (auth_user, close_session, close_session_by
                                     validate_register_data,)
 from jwtapp.utils import edit_photo
 
+from django.shortcuts import redirect
 # Create your views here.
 
 @extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
@@ -38,6 +39,7 @@ class LoginView(APIView):
         response = auth_user(*data)
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
+    
 
 @extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class RegisterView(APIView):
@@ -48,21 +50,21 @@ class RegisterView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        response = validate_register_data(serializer.validated_data)
+        validate_register_data(*serializer.validated_data.values())
         
-        return Response(response, status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class RefreshTokenView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = RefreshTokenSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        user_tokens = generate_user_tokens(token=serializer.validated_data['refresh_token'])
+        user_tokens = generate_user_tokens(user=request.user, token=serializer.validated_data['refresh_token'])
 
         return Response(user_tokens)
 
@@ -76,11 +78,12 @@ class ResetPasswordView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data.values()
+        data = serializer.validated_data
 
-        response = send_code_to_user(*data)
+        response = send_code_to_user(request.user, data.get('email'))
 
         return Response(response)
+    
 
 @extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
 class CheckVerificationCodeView(APIView):
@@ -91,11 +94,13 @@ class CheckVerificationCodeView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data.values()
+        data = serializer.validated_data
         
-        response = validate_code(*data)
-        return Response(response)
-
+        response = validate_code(user=request.user, email=data.get('email'), 
+                                 verification_code=data.get('verification_code'), 
+                                 new_password=data.get('new_password'), confirm_password=data.get('confirm_password'))
+        
+        return Response(status=status.HTTP_202_ACCEPTED)
 
 
 # РАБОТА С СЕССИЯМИ
@@ -120,7 +125,7 @@ class CloseSessionView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        response = close_session(session_id=serializer.validated_data['session_id'])
+        response = close_session(user=request.user, session_id=serializer.validated_data['session_id'])
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
@@ -185,7 +190,7 @@ class ChangeProfilePhotoView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        photo = edit_photo(serializer.validated_data)
+        photo = edit_photo(*serializer.validated_data.values())
         set_user_photo(request.user, photo)
 
         return Response('Profile photo was set', status=status.HTTP_200_OK)
