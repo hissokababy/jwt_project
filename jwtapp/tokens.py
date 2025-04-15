@@ -1,7 +1,7 @@
 import jwt
 from django.utils import timezone
-
 from jwtapp.exeptions import InvalidTokenExeption
+
 from jwtapp.models import User
 from project_jwt.settings import (ALGORITHMS, 
                                   ACCESS_TOKEN_EXPIRE, ACCESS_TOKEN_SECRET_KEY, 
@@ -11,7 +11,7 @@ from project_jwt.settings import (ALGORITHMS,
                                   REFRESH_PRIVATE_KEY, REFRESH_PUBLIC_KEY)
 
 
-def generate_access_token(user: type[User]) -> str:
+def generate_access_token(user: User) -> str:
 
     payload = {
         'user_id': user.id,
@@ -28,7 +28,7 @@ def generate_access_token(user: type[User]) -> str:
     return access_token
 
 
-def generate_refresh_token(user: type[User]) -> str:
+def generate_refresh_token(user: User) -> str:
     payload = {
         'user_id': user.id,
         'name': f'{user.username}',
@@ -45,7 +45,7 @@ def generate_refresh_token(user: type[User]) -> str:
     return refresh_token
 
 
-def decode_access_token(access_token: str) -> str:
+def decode_access_token(access_token: str) -> dict:
     try:
         if ALGORITHMS == HS256_ALGORITHM:
             decoded = jwt.decode(access_token, ACCESS_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)

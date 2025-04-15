@@ -14,10 +14,10 @@ from pathlib import Path
 
 import os
 from dotenv import load_dotenv
-
-import random
 import pem
 
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -89,12 +89,12 @@ WSGI_APPLICATION = 'project_jwt.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'mypassword',
-        'HOST': 'my-postgres',
-        'PORT': '5432',
+        'ENGINE': os.getenv("ENGINE"),
+        'NAME': os.getenv("NAME"),
+        'USER': os.getenv("USER"),
+        'PASSWORD': os.getenv("PASSWORD"),
+        'HOST': os.getenv("HOST"),
+        'PORT': os.getenv("PORT"),
     }
 }
 
@@ -194,7 +194,6 @@ AWS_S3_CUSTOM_DOMAIN = "localhost:9000/photos"
 
 TOKEN_AUTH_HEADER = 'Bearer'
 
-load_dotenv()
 
 ACCESS_TOKEN_SECRET_KEY = os.getenv('ACCESS_TOKEN_SECRET_KEY')
 REFRESH_TOKEN_SECRET_KEY = os.getenv('REFRESH_TOKEN_SECRET_KEY')

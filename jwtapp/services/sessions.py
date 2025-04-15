@@ -3,7 +3,6 @@ import random
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from jwtapp.models import Session
 from jwtapp.utils import send_user_message
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
 from jwtapp.models import Session, User
@@ -38,7 +37,7 @@ def close_session_by_id(user: User, session_id: int) -> dict:
     user = get_user(user.id)
 
     try:
-        session = Session.objects.get(pk=session_id, user=user)
+        session = Session.objects.get(pk=session_id, user=user, active=True)
     except Session.DoesNotExist:
         raise InvalidSessionExeption('Session does not exist')
     
@@ -54,7 +53,7 @@ def close_session_by_token(user: User, refresh_token: str) -> dict:
     user = get_user(user.id)
 
     try:
-        session = Session.objects.get(refresh_token=refresh_token, user=user)
+        session = Session.objects.get(refresh_token=refresh_token, user=user, active=True)
     except Session.DoesNotExist:
         raise InvalidSessionExeption('Session does not exist')
     
@@ -71,7 +70,7 @@ def close_sessions(user: User, current_session_id: int) -> dict:
     user = get_user(user.id)
 
     try:
-        current_session = Session.objects.get(pk=current_session_id, user=user)
+        current_session = Session.objects.get(pk=current_session_id, user=user, active=True)
     except Session.DoesNotExist:
         raise InvalidSessionExeption('Session does not exist')
 
@@ -86,7 +85,7 @@ def close_sessions(user: User, current_session_id: int) -> dict:
         session.active = False
         sessions.append(session)
 
-    updated = Session.objects.bulk_update(sessions, fields=['active'])
+    Session.objects.bulk_update(sessions, fields=['active'])
     
     response = {
         "results": {"closed": True}}
@@ -95,19 +94,21 @@ def close_sessions(user: User, current_session_id: int) -> dict:
 
 
 
-def close_session_by_credentials(user: User, session_id: int, email: str, password: str) -> dict:
-    user = User.objects.get(email=email, pk=user.id)
-
-    try:
-        session = Session.objects.get(pk=session_id, user=user)
-
-    except Session.DoesNotExist:
-        raise InvalidSessionExeption('No session exists')
-    
-    verified = session.user.check_password(raw_password=password)
+def close_session_by_credentials(session_id: int, email: str, password: str) -> dict:
+    user = User.objects.get(email=email)
+    verified = user.check_password(raw_password=password)
 
     if verified is False:
         raise NoUserExists('Wrong password')
+    if not user.is_active:
+        raise NoUserExists
+
+    try:
+        session = Session.objects.get(pk=session_id, user=user, active=True)
+
+    except Session.DoesNotExist:
+        raise InvalidSessionExeption('No session exists')
+
     
     session.active = False
     session.save()
@@ -121,6 +122,8 @@ def close_session_by_credentials(user: User, session_id: int, email: str, passwo
 def auth_user(email: str, password: str) -> dict:
     try:
         user = User.objects.get(email=email)
+        if not user.is_active:
+            raise NoUserExists
     except:
         raise NoUserExists('Wrong email')
     
@@ -142,7 +145,7 @@ def auth_user(email: str, password: str) -> dict:
     return response
 
 
-def validate_access_token(access_token: str) -> type[User]:
+def validate_access_token(access_token: str) -> User:
     decoded = decode_access_token(access_token)
 
     user = get_user(user_id=decoded['user_id'])
@@ -150,7 +153,7 @@ def validate_access_token(access_token: str) -> type[User]:
     return user
 
 
-def validate_refresh_token(refresh_token: str) -> type[User]:
+def validate_refresh_token(refresh_token: str) -> User:
     decoded = decode_refresh_token(refresh_token=refresh_token)
 
     user = get_user(user_id=decoded['user_id'])
@@ -159,10 +162,7 @@ def validate_refresh_token(refresh_token: str) -> type[User]:
 
         
 
-def validate_register_data(username: str, password1: str, password2: str, email: str, first_name: str, last_name: str) -> None:
-
-    if password1 != password2:
-        raise InvalidPasswordExeption("Password fields didn't match")
+def validate_register_data(username: str, password: str, email: str, first_name: str, last_name: str) -> None:
 
     user = User.objects.create(
             username=username,
@@ -171,12 +171,12 @@ def validate_register_data(username: str, password1: str, password2: str, email:
             last_name=last_name
         )
         
-    user.set_password(password1)
+    user.set_password(password)
     user.save()
 
 
 def user_sessions(user: User) -> QuerySet[Session]:
-    return Session.objects.filter(user=user)
+    return Session.objects.filter(user=user, active=True)
 
 
 def send_code_to_user(user: User, email: str) -> dict:
@@ -203,6 +203,9 @@ def send_code_to_user(user: User, email: str) -> dict:
 def validate_code(user: User, email: str, verification_code: str, new_password: str) -> None:
     try:
         user = User.objects.get(email=email, send_code=verification_code, pk=user.id)
+        if not user.is_active:
+            raise NoUserExists('Invalid data')
+        
     except User.DoesNotExist:
         raise NoUserExists('Invalid data')
 
@@ -219,6 +222,7 @@ def validate_code(user: User, email: str, verification_code: str, new_password: 
     user.set_password(new_password)
     user.save()
 
+
 def set_user_photo(user: User, photo: str) -> None:
 
     user = get_user(user_id=user.id)
@@ -230,7 +234,8 @@ def set_user_photo(user: User, photo: str) -> None:
 def get_user(user_id: int) -> User:
     try:
         user = User.objects.get(pk=user_id)
-        return user
+        if user.is_active:
+            return user
     except:
         raise NoUserExists
 
@@ -240,7 +245,7 @@ def create_user_session(user: User, refresh_token: str) -> Session:
     if user_sessions >= 3:
         raise InvalidSessionExeption('Please delete one session to continue')
     
-    session = Session.objects.create(user=user, refresh_token=refresh_token)
+    session = Session.objects.create(user=user, refresh_token=refresh_token, active=True)
     session.active = True
     session.save()
     return session

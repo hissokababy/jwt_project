@@ -1,11 +1,11 @@
-from django.core.mail import send_mail
-
-from jwtapp.models import User
-from project_jwt.settings import DEFAULT_FROM_EMAIL
 from io import BytesIO
 from django.core import files
-
 from PIL import Image
+
+from django.core.mail import send_mail
+from jwtapp.models import User
+from project_jwt.settings import DEFAULT_FROM_EMAIL
+
 
 def send_user_message(user: type[User], code: int) -> None:
     send_mail(

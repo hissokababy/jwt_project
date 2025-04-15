@@ -114,7 +114,7 @@ class ChangeProfilePhotoView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data.values()
 
-        photo = edit_photo(*data)
+        photo = edit_photo(data.get('photo'))
         set_user_photo(request.user, photo)
 
         return Response('Profile photo was set', status=status.HTTP_200_OK)
@@ -164,10 +164,10 @@ class CloseAllSessionsView(APIView):
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
+
 @extend_schema(tags=["Session"], responses=ResponseCloseSessionSerializer)
 class CloseSessionByCredentialsView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]
     serializer_class = CloseSessionByCredentialsSerializer
 
     def post(self, request):
@@ -175,7 +175,7 @@ class CloseSessionByCredentialsView(APIView):
         serializer.is_valid(raise_exception=True)
         
         data = serializer.validated_data
-        response = close_session_by_credentials(request.user, data.get('session_id'),
+        response = close_session_by_credentials(data.get('session_id'),
                                                 data.get('email'), data.get('password'))
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
