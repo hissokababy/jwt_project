@@ -27,6 +27,8 @@ def edit_photo(photo, name, sizes=(1920, 1080), quality=80):
 
     if not name:
         name = '.'.join(photo.name.split('.')[:-1]) + '.webp'
+    else:
+        name = '.'.join(name.split('.')[:-1]) + '.webp'
 
     thumb_io = BytesIO()
     photo.save(thumb_io, 'webp', quality=quality)

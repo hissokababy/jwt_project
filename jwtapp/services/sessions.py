@@ -13,13 +13,10 @@ from jwtapp.exeptions import NoUserExists, InvalidSessionExeption
 
 
 
-def generate_user_tokens(user, token):
+def generate_user_tokens(token):
     decoded = decode_refresh_token(token)
-
-    user = get_user(user.id)
     
-    if user.id != decoded['user_id']:
-        raise InvalidSessionExeption('Invalid session id')
+    user = get_user(decoded['user_id'])
 
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)
@@ -193,9 +190,7 @@ def send_code_to_user(user, email):
 
 
 
-def validate_code(user, email, verification_code, new_password, confirm_password):
-    if new_password != confirm_password:
-        raise serializers.ValidationError({"password": "Password fields didn't match."})
+def validate_code(user, email, verification_code):
 
     try:
         user = User.objects.get(email=email, send_code=verification_code, pk=user.id)
@@ -205,12 +200,18 @@ def validate_code(user, email, verification_code, new_password, confirm_password
     time_send = user.time_send.timestamp() + 120
     current_time = timezone.now().timestamp()
 
+    if current_time > time_send:
+        raise serializers.ValidationError('Code expired')
+
+def set_user_password(user, new_password, confirm_password):
+    user = get_user(user.id)
+
+    if new_password != confirm_password:
+        raise serializers.ValidationError({"password": "Password fields didn't match."})
+
     user.set_password(new_password)
     user.save()
 
-    if current_time > time_send:
-        raise serializers.ValidationError('Code expired')
-    
 
 def set_user_photo(user, photo):
 

@@ -6,7 +6,8 @@ from project_jwt.settings import (ALGORITHMS,
                                   ACCESS_TOKEN_EXPIRE, ACCESS_TOKEN_SECRET_KEY, 
                                   REFRESH_TOKEN_EXPIRE, REFRESH_TOKEN_SECRET_KEY,
                                   HS256_ALGORITHM, RS256_ALGORITHM,
-                                  PUBLIC_KEY, PRIVATE_KEY)
+                                  ACCESS_PRIVATE_KEY, ACCESS_PUBLIC_KEY,
+                                  REFRESH_PRIVATE_KEY, REFRESH_PUBLIC_KEY)
 
 
 def generate_access_token(user):
@@ -21,7 +22,7 @@ def generate_access_token(user):
         access_token = jwt.encode(payload=payload, key=ACCESS_TOKEN_SECRET_KEY, algorithm=ALGORITHMS)
     
     elif ALGORITHMS == RS256_ALGORITHM:
-        access_token = jwt.encode(payload=payload, key=str(PRIVATE_KEY), algorithm=ALGORITHMS)
+        access_token = jwt.encode(payload=payload, key=str(ACCESS_PRIVATE_KEY), algorithm=ALGORITHMS)
 
     return access_token
 
@@ -38,7 +39,7 @@ def generate_refresh_token(user):
         refresh_token = jwt.encode(payload=payload, key=REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHMS)
     
     elif ALGORITHMS == RS256_ALGORITHM:
-        refresh_token = jwt.encode(payload=payload, key=str(PRIVATE_KEY), algorithm=ALGORITHMS)
+        refresh_token = jwt.encode(payload=payload, key=str(REFRESH_PRIVATE_KEY), algorithm=ALGORITHMS)
 
     return refresh_token
 
@@ -48,7 +49,7 @@ def decode_access_token(access_token):
         if ALGORITHMS == HS256_ALGORITHM:
             decoded = jwt.decode(access_token, ACCESS_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
         elif ALGORITHMS == RS256_ALGORITHM:
-            decoded = jwt.decode(access_token, str(PUBLIC_KEY), algorithms=ALGORITHMS)
+            decoded = jwt.decode(access_token, str(ACCESS_PUBLIC_KEY), algorithms=ALGORITHMS)
 
         return decoded
     except jwt.exceptions.ExpiredSignatureError or jwt.exceptions.DecodeError as e:
@@ -60,7 +61,7 @@ def decode_refresh_token(refresh_token):
         if ALGORITHMS == HS256_ALGORITHM:
             decoded = jwt.decode(refresh_token, REFRESH_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)
         elif ALGORITHMS == RS256_ALGORITHM:
-            decoded = jwt.decode(refresh_token, str(PUBLIC_KEY), algorithms=ALGORITHMS)
+            decoded = jwt.decode(refresh_token, str(REFRESH_PUBLIC_KEY), algorithms=ALGORITHMS)
         
         return decoded
 

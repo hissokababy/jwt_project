@@ -224,6 +224,8 @@ SERVER_EMAIL = EMAIL_HOST_USER
 EMAIL_ADMIN = EMAIL_HOST_USER
 
 
-PRIVATE_KEY = pem.parse_file("private_key.pem")[0]
-PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
+ACCESS_PRIVATE_KEY = pem.parse_file("private_key.pem")[0]
+ACCESS_PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
 
+REFRESH_PRIVATE_KEY = pem.parse_file("private_key.pem")[0]
+REFRESH_PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
