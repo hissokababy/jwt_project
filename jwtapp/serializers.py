@@ -45,15 +45,11 @@ class ResponsePasswordResetSerializer(serializers.Serializer):
     send_code = serializers.BooleanField(default=True)
 
 
-
 class CheckVerificationCodeSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    device_type = serializers.CharField(required=False)
     verification_code = serializers.CharField()
-
-class SetUserPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(validators=[validate_password])
-    confirm_password = serializers.CharField()
+
 
 
 # Работа с сессиями

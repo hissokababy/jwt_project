@@ -1,15 +1,13 @@
 import random
-from jwtapp.models import Session
+
+from django.db.models import QuerySet
 from django.utils import timezone
 
+from jwtapp.models import Session
 from jwtapp.utils import send_user_message
-
 from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_access_token, generate_refresh_token
-
-from rest_framework import serializers
-
 from jwtapp.models import Session, User
-from jwtapp.exeptions import InvalidCodeExeption, NoUserExists, InvalidSessionExeption
+from jwtapp.exeptions import InvalidCodeExeption, InvalidPasswordExeption, NoUserExists, InvalidSessionExeption
 
 
 def generate_user_tokens(token: str) -> dict:
@@ -17,10 +15,16 @@ def generate_user_tokens(token: str) -> dict:
     
     user = get_user(decoded['user_id'])
 
+    try:
+        session = Session.objects.get(user=user, refresh_token=token, active=True)
+    except Session.DoesNotExist:
+        raise InvalidSessionExeption
+
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)
 
-    create_user_session(user, refresh_token)
+    session.refresh_token = refresh_token
+    session.save()
 
     response = {
         'access_token': access_token,
@@ -30,7 +34,7 @@ def generate_user_tokens(token: str) -> dict:
     return response
 
 
-def close_session_by_id(user: type[User], session_id: int) -> dict:
+def close_session_by_id(user: User, session_id: int) -> dict:
     user = get_user(user.id)
 
     try:
@@ -46,7 +50,7 @@ def close_session_by_id(user: type[User], session_id: int) -> dict:
     
     return response
 
-def close_session_by_token(user: type[User], refresh_token: str) -> dict:
+def close_session_by_token(user: User, refresh_token: str) -> dict:
     user = get_user(user.id)
 
     try:
@@ -63,7 +67,7 @@ def close_session_by_token(user: type[User], refresh_token: str) -> dict:
     return response
     
 
-def close_sessions(user: type[User], current_session_id: int) -> dict:
+def close_sessions(user: User, current_session_id: int) -> dict:
     user = get_user(user.id)
 
     try:
@@ -91,7 +95,7 @@ def close_sessions(user: type[User], current_session_id: int) -> dict:
 
 
 
-def close_session_by_credentials(user: type[User], session_id: int, email: str, password: str) -> dict:
+def close_session_by_credentials(user: User, session_id: int, email: str, password: str) -> dict:
     user = User.objects.get(email=email, pk=user.id)
 
     try:
@@ -158,7 +162,7 @@ def validate_refresh_token(refresh_token: str) -> type[User]:
 def validate_register_data(username: str, password1: str, password2: str, email: str, first_name: str, last_name: str) -> None:
 
     if password1 != password2:
-        raise serializers.ValidationError({"password": "Password fields didn't match."})
+        raise InvalidPasswordExeption("Password fields didn't match")
 
     user = User.objects.create(
             username=username,
@@ -171,11 +175,11 @@ def validate_register_data(username: str, password1: str, password2: str, email:
     user.save()
 
 
-def user_sessions(user: type[User]) -> type[Session]:
+def user_sessions(user: User) -> QuerySet[Session]:
     return Session.objects.filter(user=user)
 
 
-def send_code_to_user(user: type[User], email: str) -> dict:
+def send_code_to_user(user: User, email: str) -> dict:
     try:
         user = User.objects.get(pk=user.id, email=email)
     except User.DoesNotExist:
@@ -196,8 +200,7 @@ def send_code_to_user(user: type[User], email: str) -> dict:
     return response
 
 
-def validate_code(user: type[User], email: str, verification_code: str) -> None:
-
+def validate_code(user: User, email: str, verification_code: str, new_password: str) -> None:
     try:
         user = User.objects.get(email=email, send_code=verification_code, pk=user.id)
     except User.DoesNotExist:
@@ -208,18 +211,15 @@ def validate_code(user: type[User], email: str, verification_code: str) -> None:
 
     if current_time > time_send:
         raise InvalidCodeExeption
-
-def set_user_password(user: type[User], new_password: str, confirm_password: str) -> None:
-    user = get_user(user.id)
-
-    if new_password != confirm_password:
-        raise serializers.ValidationError({"password": "Password fields didn't match."})
+    
+    old_password = user.check_password(new_password)
+    if old_password:
+        raise InvalidPasswordExeption("This password was already used as old, enter a different password!")
 
     user.set_password(new_password)
     user.save()
 
-
-def set_user_photo(user: type[User], photo: str) -> None:
+def set_user_photo(user: User, photo: str) -> None:
 
     user = get_user(user_id=user.id)
 
@@ -227,15 +227,15 @@ def set_user_photo(user: type[User], photo: str) -> None:
     user.save()
 
 
-def get_user(user_id: int) -> type[User]:
+def get_user(user_id: int) -> User:
     try:
         user = User.objects.get(pk=user_id)
         return user
     except:
         raise NoUserExists
 
-def create_user_session(user: type[User], refresh_token: str) -> type[Session]:
-    user_sessions = Session.objects.filter(user=user).count()
+def create_user_session(user: User, refresh_token: str) -> Session:
+    user_sessions = Session.objects.filter(user=user, active=True).count()
 
     if user_sessions >= 3:
         raise InvalidSessionExeption('Please delete one session to continue')

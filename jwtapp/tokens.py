@@ -57,7 +57,7 @@ def decode_access_token(access_token: str) -> str:
         raise InvalidTokenExeption(e)
 
 
-def decode_refresh_token(refresh_token: str) -> str:
+def decode_refresh_token(refresh_token: str) -> dict:
     try:
         if ALGORITHMS == HS256_ALGORITHM:
             decoded = jwt.decode(refresh_token, REFRESH_TOKEN_SECRET_KEY, algorithms=ALGORITHMS)

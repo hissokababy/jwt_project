@@ -10,13 +10,14 @@ from jwtapp.models import User
 from jwtapp.serializers import (ChangeProfilePhotoSerializer, CheckVerificationCodeSerializer, CloseAllSessionsSerializer, 
                                 CloseSessionByCredentialsSerializer, CloseSessionSerializer, LoginSerializer, 
                                 MySessionsSerializer, PasswordResetSerializer, RefreshTokenSerializer, 
-                                RegisterSerializer, ResponseCloseSessionSerializer, ResponseLoginSerializer, ResponsePasswordResetSerializer, SetUserPasswordSerializer
+                                RegisterSerializer, ResponseCloseSessionSerializer, ResponseLoginSerializer, 
+                                ResponsePasswordResetSerializer
                                 )
 
 from jwtapp.authentication import JWTAuthentication
 
 from jwtapp.services.sessions import (auth_user, close_session_by_credentials, close_session_by_id, close_session_by_token, close_sessions, 
-                                    generate_user_tokens, send_code_to_user, set_user_password, set_user_photo, user_sessions, validate_code, 
+                                    generate_user_tokens, send_code_to_user, set_user_photo, user_sessions, validate_code, 
                                     validate_register_data,)
 from jwtapp.utils import edit_photo
 
@@ -96,27 +97,10 @@ class CheckVerificationCodeView(APIView):
         data = serializer.validated_data
         
         validate_code(user=request.user, email=data.get('email'), 
-                                 verification_code=data.get('verification_code'))
+                                 verification_code=data.get('verification_code'), 
+                                 new_password=data.get('new_password'))
         
-        return Response('Please enter new password', status=status.HTTP_202_ACCEPTED)
-
-
-@extend_schema(tags=["Auth"])
-class SetUserPasswordView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-    serializer_class = SetUserPasswordSerializer
-
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        
-        set_user_password(user=request.user,
-                                 new_password=data.get('new_password'), 
-                                 confirm_password=data.get('confirm_password'))
-        
-        return Response('Success, please log in', status=status.HTTP_202_ACCEPTED)
+        return Response(status=status.HTTP_202_ACCEPTED)
 
 
 @extend_schema(tags=["Auth"])
@@ -128,8 +112,9 @@ class ChangeProfilePhotoView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.values()
 
-        photo = edit_photo(*serializer.validated_data.values())
+        photo = edit_photo(*data)
         set_user_photo(request.user, photo)
 
         return Response('Profile photo was set', status=status.HTTP_200_OK)
