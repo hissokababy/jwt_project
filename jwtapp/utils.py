@@ -16,7 +16,7 @@ def send_user_message(user, code):
 )
 
 
-def edit_photo(photo, name, sizes=(1920, 1080), quality=80):
+def edit_photo(photo: str, name: str, sizes: tuple=(1920, 1080), quality: int=80):
 
     photo = Image.open(photo)
 

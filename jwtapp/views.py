@@ -15,12 +15,11 @@ from jwtapp.serializers import (ChangeProfilePhotoSerializer, CheckVerificationC
 
 from jwtapp.authentication import JWTAuthentication
 
-from jwtapp.services.sessions import (auth_user, close_session, close_session_by_credentials, close_sessions, 
+from jwtapp.services.sessions import (auth_user, close_session_by_credentials, close_session_by_id, close_session_by_token, close_sessions, 
                                     generate_user_tokens, send_code_to_user, set_user_password, set_user_photo, user_sessions, validate_code, 
                                     validate_register_data,)
 from jwtapp.utils import edit_photo
 
-from django.shortcuts import redirect
 # Create your views here.
 
 @extend_schema(tags=["Auth"], responses=ResponseLoginSerializer)
@@ -96,7 +95,7 @@ class CheckVerificationCodeView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         
-        response = validate_code(user=request.user, email=data.get('email'), 
+        validate_code(user=request.user, email=data.get('email'), 
                                  verification_code=data.get('verification_code'))
         
         return Response('Please enter new password', status=status.HTTP_202_ACCEPTED)
@@ -113,11 +112,28 @@ class SetUserPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         
-        response = set_user_password(user=request.user,
+        set_user_password(user=request.user,
                                  new_password=data.get('new_password'), 
                                  confirm_password=data.get('confirm_password'))
         
         return Response('Success, please log in', status=status.HTTP_202_ACCEPTED)
+
+
+@extend_schema(tags=["Auth"])
+class ChangeProfilePhotoView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = ChangeProfilePhotoSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        photo = edit_photo(*serializer.validated_data.values())
+        set_user_photo(request.user, photo)
+
+        return Response('Profile photo was set', status=status.HTTP_200_OK)
+
 
 # РАБОТА С СЕССИЯМИ
 
@@ -140,8 +156,10 @@ class CloseSessionView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        response = close_session(user=request.user, session_id=serializer.validated_data.get('session_id'))
+
+        response = close_session_by_id(user=request.user, session_id=data.get('session_id'))
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
@@ -155,9 +173,9 @@ class CloseAllSessionsView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data.values()
+        data = serializer.validated_data
 
-        response = close_sessions(*data)
+        response = close_sessions(request.user, data.get('current_session_id'))
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
 
@@ -171,9 +189,9 @@ class CloseSessionByCredentialsView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        data = serializer.validated_data.values()
-
-        response = close_session_by_credentials(*data)
+        data = serializer.validated_data
+        response = close_session_by_credentials(request.user, data.get('session_id'),
+                                                data.get('email'), data.get('password'))
 
         return Response(response, status=status.HTTP_202_ACCEPTED)
     
@@ -184,30 +202,12 @@ class SessionLogoutView(APIView):
     serializer_class = RefreshTokenSerializer
 
     def post(self, request):
-        try:
-            serializer = self.serializer_class(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            refresh_token = serializer.validated_data.get('refresh_token')
-
-            response = close_session(refresh_token=refresh_token)
-
-            return Response(response, status=status.HTTP_201_CREATED)
-        
-        except Exception as e:
-            return Response(e)
-        
-
-
-class ChangeProfilePhotoView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-    serializer_class = ChangeProfilePhotoSerializer
-
-    def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        refresh_token = serializer.validated_data.get('refresh_token')
 
-        photo = edit_photo(*serializer.validated_data.values())
-        set_user_photo(request.user, photo)
+        response = close_session_by_token(request.user, refresh_token=refresh_token)
 
-        return Response('Profile photo was set', status=status.HTTP_200_OK)
+        return Response(response, status=status.HTTP_201_CREATED)
+
+        

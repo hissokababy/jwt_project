@@ -26,7 +26,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
-    device_type = serializers.CharField(required=False)
     password = serializers.CharField(required=True, validators=[validate_password])
 
 
@@ -80,7 +79,6 @@ class CloseAllSessionsSerializer(serializers.Serializer):
 
 class CloseSessionByCredentialsSerializer(serializers.Serializer):
     session_id = serializers.IntegerField(required=True)
-    phone = serializers.CharField()
     email = serializers.EmailField()
     password = serializers.CharField(required=True, validators=[validate_password])
 

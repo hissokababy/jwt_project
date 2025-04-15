@@ -9,11 +9,10 @@ from jwtapp.tokens import decode_access_token, decode_refresh_token, generate_ac
 from rest_framework import serializers
 
 from jwtapp.models import Session, User
-from jwtapp.exeptions import NoUserExists, InvalidSessionExeption
+from jwtapp.exeptions import InvalidCodeExeption, NoUserExists, InvalidSessionExeption
 
 
-
-def generate_user_tokens(token):
+def generate_user_tokens(token: str) -> dict:
     decoded = decode_refresh_token(token)
     
     user = get_user(decoded['user_id'])
@@ -31,20 +30,29 @@ def generate_user_tokens(token):
     return response
 
 
-def close_session(user=None, session_id=None, refresh_token=None):
+def close_session_by_id(user: type[User], session_id: int) -> dict:
     user = get_user(user.id)
 
-    if session_id:
-        try:
-            session = Session.objects.get(pk=session_id, user=user)
-        except Session.DoesNotExist:
-            raise InvalidSessionExeption('Session does not exist')
+    try:
+        session = Session.objects.get(pk=session_id, user=user)
+    except Session.DoesNotExist:
+        raise InvalidSessionExeption('Session does not exist')
+    
+    session.active = False
+    session.save()
 
-    elif refresh_token:
-        try:
-            session = Session.objects.get(refresh_token=refresh_token, user=user)
-        except Session.DoesNotExist:
-            raise InvalidSessionExeption('Session does not exist')
+    response = {
+        "results": {"closed": True}}
+    
+    return response
+
+def close_session_by_token(user: type[User], refresh_token: str) -> dict:
+    user = get_user(user.id)
+
+    try:
+        session = Session.objects.get(refresh_token=refresh_token, user=user)
+    except Session.DoesNotExist:
+        raise InvalidSessionExeption('Session does not exist')
     
     session.active = False
     session.save()
@@ -55,8 +63,7 @@ def close_session(user=None, session_id=None, refresh_token=None):
     return response
     
 
-
-def close_sessions(user, current_session_id):
+def close_sessions(user: type[User], current_session_id: int) -> dict:
     user = get_user(user.id)
 
     try:
@@ -84,7 +91,7 @@ def close_sessions(user, current_session_id):
 
 
 
-def close_session_by_credentials(user, session_id, email, password):
+def close_session_by_credentials(user: type[User], session_id: int, email: str, password: str) -> dict:
     user = User.objects.get(email=email, pk=user.id)
 
     try:
@@ -107,7 +114,7 @@ def close_session_by_credentials(user, session_id, email, password):
     return response
 
 
-def auth_user(email, password):
+def auth_user(email: str, password: str) -> dict:
     try:
         user = User.objects.get(email=email)
     except:
@@ -131,7 +138,7 @@ def auth_user(email, password):
     return response
 
 
-def validate_access_token(access_token):
+def validate_access_token(access_token: str) -> type[User]:
     decoded = decode_access_token(access_token)
 
     user = get_user(user_id=decoded['user_id'])
@@ -139,7 +146,7 @@ def validate_access_token(access_token):
     return user
 
 
-def validate_refresh_token(refresh_token):
+def validate_refresh_token(refresh_token: str) -> type[User]:
     decoded = decode_refresh_token(refresh_token=refresh_token)
 
     user = get_user(user_id=decoded['user_id'])
@@ -148,7 +155,7 @@ def validate_refresh_token(refresh_token):
 
         
 
-def validate_register_data(username, password1, password2, email, first_name, last_name):
+def validate_register_data(username: str, password1: str, password2: str, email: str, first_name: str, last_name: str) -> None:
 
     if password1 != password2:
         raise serializers.ValidationError({"password": "Password fields didn't match."})
@@ -164,11 +171,11 @@ def validate_register_data(username, password1, password2, email, first_name, la
     user.save()
 
 
-def user_sessions(user):
+def user_sessions(user: type[User]) -> type[Session]:
     return Session.objects.filter(user=user)
 
 
-def send_code_to_user(user, email):
+def send_code_to_user(user: type[User], email: str) -> dict:
     try:
         user = User.objects.get(pk=user.id, email=email)
     except User.DoesNotExist:
@@ -189,8 +196,7 @@ def send_code_to_user(user, email):
     return response
 
 
-
-def validate_code(user, email, verification_code):
+def validate_code(user: type[User], email: str, verification_code: str) -> None:
 
     try:
         user = User.objects.get(email=email, send_code=verification_code, pk=user.id)
@@ -201,9 +207,9 @@ def validate_code(user, email, verification_code):
     current_time = timezone.now().timestamp()
 
     if current_time > time_send:
-        raise serializers.ValidationError('Code expired')
+        raise InvalidCodeExeption
 
-def set_user_password(user, new_password, confirm_password):
+def set_user_password(user: type[User], new_password: str, confirm_password: str) -> None:
     user = get_user(user.id)
 
     if new_password != confirm_password:
@@ -213,7 +219,7 @@ def set_user_password(user, new_password, confirm_password):
     user.save()
 
 
-def set_user_photo(user, photo):
+def set_user_photo(user: type[User], photo: str) -> None:
 
     user = get_user(user_id=user.id)
 
@@ -221,17 +227,15 @@ def set_user_photo(user, photo):
     user.save()
 
 
-def get_user(user_id):
+def get_user(user_id: int) -> type[User]:
     try:
         user = User.objects.get(pk=user_id)
         return user
     except:
         raise NoUserExists
 
-def create_user_session(user, refresh_token):
+def create_user_session(user: type[User], refresh_token: str) -> type[Session]:
     user_sessions = Session.objects.filter(user=user).count()
-
-    print(user_sessions)
 
     if user_sessions >= 3:
         raise InvalidSessionExeption('Please delete one session to continue')
