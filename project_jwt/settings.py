@@ -194,7 +194,6 @@ AWS_S3_CUSTOM_DOMAIN = "localhost:9000/photos"
 
 TOKEN_AUTH_HEADER = 'Bearer'
 
-
 load_dotenv()
 
 ACCESS_TOKEN_SECRET_KEY = os.getenv('ACCESS_TOKEN_SECRET_KEY')

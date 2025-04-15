@@ -28,7 +28,7 @@ def generate_access_token(user: type[User]) -> str:
     return access_token
 
 
-def generate_refresh_token(user: type[User]):
+def generate_refresh_token(user: type[User]) -> str:
     payload = {
         'user_id': user.id,
         'name': f'{user.username}',
