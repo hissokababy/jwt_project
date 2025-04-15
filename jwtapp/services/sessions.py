@@ -239,6 +239,7 @@ def get_user(user_id: int) -> User:
     except:
         raise NoUserExists
 
+
 def create_user_session(user: User, refresh_token: str) -> Session:
     user_sessions = Session.objects.filter(user=user, active=True).count()
 
