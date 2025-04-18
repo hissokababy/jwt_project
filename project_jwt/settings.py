@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'jwtapp',
+    'mailing_app',
     'rest_framework',
     'drf_spectacular',
 
