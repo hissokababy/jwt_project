@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema
 
 from mailing_app.serializers import CreateTaskSerializer, TaskSerilizer
 from mailing_app.services.mailing import MailingService
+from mailing_app.tasks import check
 
 
 # Create your views here.
@@ -32,6 +33,8 @@ class TaskDetailView(APIView):
 
         serializer = TaskSerilizer(data=task)
         serializer.is_valid(raise_exception=True)
+
+        self.service.check_task_date()
 
         return Response(serializer.validated_data)
     

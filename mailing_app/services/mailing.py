@@ -1,14 +1,19 @@
+import datetime
+from django.db.models import QuerySet
+from django.core.mail import send_mail
+
 from jwtapp.models import User
 
-from mailing_app.models import Task, TaskReceiver
+from mailing_app.models import Task, TaskReceiver, TaskReport
 from mailing_app.exeptions import NoTaskExist
-
+from project_jwt.settings import DEFAULT_FROM_EMAIL
 
 class MailingService:
     def __init__(self):
         pass
 
     def create_task(self, user: User, title: str, message: str, date: str, receivers: list) -> None:
+
         _, task = Task.objects.get_or_create(created_by=user, title=title,
                                 message=message, date=date)
 
@@ -34,7 +39,7 @@ class MailingService:
         reports_data = [
             {  
                 'id': i.pk, 
-                'status': i.status,
+                'task_compeleted': i.task_compeleted,
                 'total_receivers': i.total_receivers,
                 'successful': i.successful,
                 'unsuccessful': i.unsuccessful,
@@ -105,3 +110,37 @@ class MailingService:
             task = Task.objects.get(pk=pk).delete()
         except Task.DoesNotExist:
             raise NoTaskExist
+
+    def check_task_date(self) -> TaskReport:
+        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now())
+
+        successful = 0
+        unsuccessful = 0
+
+        if tasks.exists():
+
+            for task in tasks:
+                task_receivers = task.receivers.filter(is_active=True)
+
+                for receiver in task_receivers:
+                    try:
+                        send_mail(
+                        subject=task.title,
+                        message=task.message,
+                        from_email=DEFAULT_FROM_EMAIL,
+                        recipient_list=[receiver.user.email],
+                        fail_silently=False,
+                        )
+                        successful += 1
+                    except:
+                        unsuccessful += 1
+
+                report = TaskReport.objects.create(task=task, task_compeleted=True,
+                                                total_receivers=task_receivers.count(),
+                                                successful=successful, unsuccessful=unsuccessful)
+
+                task.completed = True
+                task.save()
+
+            return report
+    

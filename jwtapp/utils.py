@@ -7,7 +7,7 @@ from jwtapp.models import User
 from project_jwt.settings import DEFAULT_FROM_EMAIL
 
 
-def send_user_message(user: type[User], code: int) -> None:
+def send_user_message(user: User, code: int) -> None:
     send_mail(
     "Subject here",
     f"Here is your code {code}",

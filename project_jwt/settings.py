@@ -228,3 +228,10 @@ ACCESS_PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
 
 REFRESH_PRIVATE_KEY = pem.parse_file("private_key.pem")[0]
 REFRESH_PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
+
+
+
+
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CELERY_WORKER_TIME_INTERVAL = 60.0

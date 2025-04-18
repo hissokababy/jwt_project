@@ -16,7 +16,7 @@ class TaskReceiverSerializer(serializers.Serializer):
 
 class TaskReportSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    status = serializers.BooleanField()
+    task_compeleted = serializers.BooleanField()
     total_receivers = serializers.IntegerField()
     successful = serializers.IntegerField()
     unsuccessful = serializers.IntegerField()

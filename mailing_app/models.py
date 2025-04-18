@@ -16,7 +16,7 @@ class Task(models.Model):
     title = models.CharField(verbose_name='Название задачи')
     message = models.TextField(verbose_name='Текст')
     date = models.DateTimeField(verbose_name='Дата выполнения задачи')
-    compeleted = models.BooleanField(default=False, verbose_name='Задача выполнена')
+    completed = models.BooleanField(default=False, verbose_name='Задача выполнена')
 
     def __str__(self):
         return f'Задача {self.pk}'
@@ -41,7 +41,7 @@ class TaskReceiver(models.Model):
 
 class TaskReport(models.Model):
     task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, related_name='reports')
-    status = models.BooleanField(default=False, verbose_name='Задача выполнена')
+    task_compeleted = models.BooleanField(default=False, verbose_name='Задача выполнена')
     total_receivers = models.IntegerField(verbose_name='Общее кол-во получателей')
     successful = models.IntegerField(verbose_name='Успешные')
     unsuccessful = models.IntegerField(verbose_name='Неуспешно')
