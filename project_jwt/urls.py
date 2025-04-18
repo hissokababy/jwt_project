@@ -23,7 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     path('', include('jwtapp.urls')),
-    path('mailing/', include('mailing_app.urls')),
+    path('', include('mailing_app.urls')),
 
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # Optional UI:
