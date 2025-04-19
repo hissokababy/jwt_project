@@ -34,8 +34,6 @@ class TaskDetailView(APIView):
         serializer = TaskSerilizer(data=task)
         serializer.is_valid(raise_exception=True)
 
-        self.service.check_task_date()
-
         return Response(serializer.validated_data)
     
     @extend_schema(responses=TaskSerilizer)

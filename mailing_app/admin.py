@@ -14,9 +14,9 @@ class TaskReportInline(admin.TabularInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'date',
-                    'created_by']
+                    'created_by', 'completed']
     fields = ['title', 'message', 'date',
-                    'created_by', 'updated_by']
+                    'created_by', 'updated_by', 'completed']
     list_display_links = ['id', 'title']
 
     inlines = [TaskReceiverInline, TaskReportInline]
