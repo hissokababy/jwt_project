@@ -136,13 +136,3 @@ class MailingService:
     
 
 
-# tasks = Task.objects.select_related("created_by").prefetch_related("receivers__created_by").filter() # 10
-
-# for task in tasks:
-#     task.created_by
-#     task.created_by_id
-#     receivers = task.receivers.all() # 2
-#     for receiver in receivers:
-#         receiver.created_by
-
-

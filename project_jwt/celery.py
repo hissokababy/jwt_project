@@ -14,9 +14,9 @@ app = Celery(
 
 app.conf.beat_schedule = {
  'check': {
- 'task': 'mailing_app.tasks.check',
- 'schedule': CELERY_WORKER_TIME_INTERVAL
- }
+     'task': 'mailing_app.tasks.check',
+     'schedule': CELERY_WORKER_TIME_INTERVAL
+    }
 }
 
 # Using a string here means the worker doesn't have to serialize

@@ -8,10 +8,3 @@ def check() -> None:
     service = MailingService()
     service.check_task_date()
 
-
-
-
-
-
-
-

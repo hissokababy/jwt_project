@@ -69,10 +69,14 @@ services:
     depends_on:
       - redis
 
-  # flower:
-  #   image: mher/flower
-  #   command: celery flower --persisten=True
-  #   volumes:
-  #     - .:/app
-  #   ports:
-  #     - 5555:5555
+  flower:
+    image: mher/flower
+    container_name: flower
+    command: celery flower --persisten=True
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_PORT=8888
+    ports:
+    - 8888:8888 # docker will expose this ports
+    volumes:
+    - .:/flower_data
