@@ -58,9 +58,9 @@ services:
     command: celery -A project_jwt worker -l info
     volumes:
       - .:/app
-
     depends_on:
       - redis
+
   celery-beat:
     build: .
     command: celery -A project_jwt beat -l info
@@ -68,3 +68,11 @@ services:
       - .:/app
     depends_on:
       - redis
+
+  # flower:
+  #   image: mher/flower
+  #   command: celery flower --persisten=True
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - 5555:5555

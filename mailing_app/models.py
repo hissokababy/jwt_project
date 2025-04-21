@@ -9,9 +9,10 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания задачи')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата изменения задачи')
 
-    created_by = models.ForeignKey(User, verbose_name='Автор задачи', related_name='tasks', 
+    created_by = models.ForeignKey(User, verbose_name='Автор задачи', 
+                                   on_delete=models.SET_NULL, null=True, related_name='tasks')
+    updated_by = models.ForeignKey(User, verbose_name='Кто изменил задачу', 
                                    on_delete=models.SET_NULL, null=True)
-    updated_by = models.IntegerField(verbose_name='Кто изменил задачу', blank=True, null=True)
 
     title = models.CharField(verbose_name='Название задачи')
     message = models.TextField(verbose_name='Текст')
@@ -29,7 +30,6 @@ class Task(models.Model):
 class TaskReceiver(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='receivers', verbose_name='Задача')
     user = models.ForeignKey(on_delete=models.SET_NULL, null=True, verbose_name='Пользователь', to=User)
-    is_active = models.BooleanField(default=True, verbose_name='Активный')
 
     def __str__(self):
         return f'Получатель {self.user.username} {self.user.pk}'
@@ -42,8 +42,8 @@ class TaskReceiver(models.Model):
 class TaskReport(models.Model):
     task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, related_name='reports')
     task_compeleted = models.BooleanField(default=False, verbose_name='Задача выполнена')
-    total_receivers = models.IntegerField(verbose_name='Общее кол-во получателей')
-    successful = models.IntegerField(verbose_name='Успешные')
+    total_receivers = models.PositiveIntegerField(verbose_name='Общее кол-во получателей')
+    successful = models.PositiveIntegerField(verbose_name='Успешные')
     
     def __str__(self):
         return f'Отчёт №{self.pk} по задаче {self.task.pk}'

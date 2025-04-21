@@ -53,8 +53,8 @@ def decode_access_token(access_token: str) -> dict:
             decoded = jwt.decode(access_token, str(ACCESS_PUBLIC_KEY), algorithms=ALGORITHMS)
 
         return decoded
-    except jwt.exceptions.ExpiredSignatureError or jwt.exceptions.DecodeError as e:
-        raise InvalidTokenExeption(e)
+    except:
+        raise InvalidTokenExeption('Invalid token')
 
 
 def decode_refresh_token(refresh_token: str) -> dict:

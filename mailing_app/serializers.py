@@ -19,7 +19,6 @@ class TaskReportSerializer(serializers.Serializer):
     task_compeleted = serializers.BooleanField()
     total_receivers = serializers.IntegerField()
     successful = serializers.IntegerField()
-    unsuccessful = serializers.IntegerField()
     
 
 class TaskSerilizer(serializers.Serializer):
@@ -27,5 +26,6 @@ class TaskSerilizer(serializers.Serializer):
     title = serializers.CharField()
     message = serializers.CharField(max_length=200)
     date = serializers.DateTimeField()
-    receivers = TaskReceiverSerializer(many=True)
-    reports = TaskReportSerializer(many=True)
+    completed = serializers.BooleanField()
+    receivers = TaskReceiverSerializer(many=True, required=False)
+    reports = TaskReportSerializer(many=True, required=False)

@@ -1,11 +1,14 @@
 import datetime
 from django.db.models import QuerySet
 from django.db import transaction
+from django.core.mail import send_mail
+from django.forms.models import model_to_dict
 
 
 from jwtapp.models import User
 
-from mailing_app.models import Task, TaskReceiver
+from project_jwt.settings import DEFAULT_FROM_EMAIL
+from mailing_app.models import Task, TaskReceiver, TaskReport
 from mailing_app.exeptions import NoTaskExist, ReceiverIdError
 
 class MailingService:
@@ -28,97 +31,118 @@ class MailingService:
 
     def get_task_by_id(self, pk: int) -> dict:
         try:
-            task = Task.objects.get(pk=pk)
-            receivers = task.receivers.all()
-            reports = task.reports.all()
-
+            task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=pk)
         except Task.DoesNotExist:
             raise NoTaskExist
+        
+        data = model_to_dict(task)
+        reports_lst = [model_to_dict(i) for i in task.reports.all()]
 
-        receivers_data = [{'user': i.user.pk} for i in receivers]
-        reports_data = [
-            {  
-                'id': i.pk, 
-                'task_compeleted': i.task_compeleted,
-                'total_receivers': i.total_receivers,
-                'successful': i.successful,
-                'unsuccessful': i.unsuccessful,
-            } 
-            
-            for i in reports]
-
-        task_data = {
-            'id': task.pk,
-            'title': task.title,
-            'message': task.message,
-            'date': task.date,
-            'receivers': receivers_data,
-            'reports': reports_data,
-        }
-
-        return task_data
+        data.update({'receivers': list(task.receivers.values_list('user__pk', flat=True))})
+        data.update({'reports': reports_lst})
+        
+        return data
 
 
     def update_task(self, pk: int, user: User, defaults: dict) -> Task:
         try:
-            task = Task.objects.get(pk=pk)
+            task = Task.objects.select_related('updated_by').get(pk=pk)
         except Task.DoesNotExist:
             raise NoTaskExist
 
-        task.updated_by = user.pk
-        task.title = defaults.get('title')
-        task.message = defaults.get('message')
-        task.date = defaults.get('date')
+        task.updated_by = user
+        task.title = defaults.get('title', task.title)
+        task.message = defaults.get('message', task.message)
+        task.date = defaults.get('date', task.date)
         task.save()
 
-        receivers_lst = defaults.get('receivers')
-        users = User.objects.filter(pk__in=receivers_lst)
-        user_ids = [i.pk for i in users]
+        receivers_lst = defaults.get('receivers') # получили список ид пользователей
+        receivers_set = set(receivers_lst)
 
-        for i in receivers_lst:
-            if i not in user_ids:
-                raise ReceiverIdError(f'No user with id {i}')
-            
-        active_receivers = TaskReceiver.objects.filter(task=task, is_active=True)
-
-        print(receivers_lst)
-        print(active_receivers)
+        # ######  проверили на несуществующего пользователя  #####
+        users_ids = User.objects.filter(pk__in=receivers_lst).values_list("pk", flat=True)
+        users_set = set(users_ids)
+        non_existent_users = list(receivers_set - users_set)
         
-        deactive_receivers = TaskReceiver.objects.exclude(user__pk__in=receivers_lst)
-        deactive_lst = []
+        if non_existent_users:
+            raise ReceiverIdError(f'No users with id: {non_existent_users}')  
+        ######  проверили на несуществующего пользователя #####
 
-        for i in deactive_receivers:
-            i.is_active = False
-            deactive_lst.append(i)
+        ####### удаление получателей #######
+        TaskReceiver.objects.exclude(task=task, user__pk__in=receivers_lst).delete()
+
+        # ####### добавление новых получателей #######
+        all_task_receivers = TaskReceiver.objects.filter(task=task, task__completed=False).values_list('user__pk', flat=True)
+        all_task_receivers_set = set(all_task_receivers)
+
+        new_receivers = list(receivers_set - all_task_receivers_set)
         
-        TaskReceiver.objects.bulk_update(deactive_lst, fields=['is_active'])
+        if new_receivers:
+            self.bulk_create_receivers(task, receivers=new_receivers)
+        # ####### добавление новых получателей #######
 
         return task    
 
 
     def bulk_create_receivers(self, task: Task, receivers: list) -> None:
         users = User.objects.filter(pk__in=receivers)
-        user_ids = [i.pk for i in users]
-        lst = []
+        non_existent_users = list(set(receivers) - set(users.values_list('pk', flat=True)))
 
-        for user in users:
-            lst.append(TaskReceiver(user=user, task=task))
-
-        for i in receivers:
-            if i not in user_ids:
-                raise ReceiverIdError(f'No user with id {i}')
+        if non_existent_users:
+            raise ReceiverIdError(f'No users with id: {non_existent_users}')  
         
-        receivers = TaskReceiver.objects.bulk_create(lst)
+        new_receivers = [TaskReceiver(user=user, task=task) for user in users]
 
+        receivers = TaskReceiver.objects.bulk_create(new_receivers)
 
     def delete_task(self, pk: int) -> None:
         try:
-            task = Task.objects.get(pk=pk).delete()
+            Task.objects.get(pk=pk).delete()
         except Task.DoesNotExist:
             raise NoTaskExist
 
     def check_task_date(self) -> QuerySet:
-        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now())
+        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now()).prefetch_related('receivers__user__email')
+        
+        if tasks.exists():
+            successful = 0
+
+            for task in tasks:
+                task_receivers = task.receivers.all()
+
+                if task_receivers.exists():
+                    for task_receiver in task_receivers:
+                        if task_receiver.user.email:
+                            send_mail(
+                                subject=task.title,
+                                message=task.message,
+                                from_email=DEFAULT_FROM_EMAIL,
+                                recipient_list=[task_receiver.user.email],
+                                fail_silently=False,
+                            )
+                            
+                            successful += 1
+
+                    TaskReport.objects.create(task=task, task_compeleted=True,
+                                                        total_receivers=task_receivers.count(),
+                                                        successful=successful)
+                    task.completed = True
+                    task.save()
+
+        else:
+            print('no tasks to send')
 
         return tasks
     
+
+
+# tasks = Task.objects.select_related("created_by").prefetch_related("receivers__created_by").filter() # 10
+
+# for task in tasks:
+#     task.created_by
+#     task.created_by_id
+#     receivers = task.receivers.all() # 2
+#     for receiver in receivers:
+#         receiver.created_by
+
+

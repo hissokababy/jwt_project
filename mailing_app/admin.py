@@ -6,10 +6,12 @@ from mailing_app.models import Task, TaskReceiver, TaskReport
 class TaskReceiverInline(admin.TabularInline):
     fk_name = 'task'
     model = TaskReceiver
+    extra = 1
 
 class TaskReportInline(admin.TabularInline):
     fk_name = 'task'
     model = TaskReport
+    extra = 1
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
