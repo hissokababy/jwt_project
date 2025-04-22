@@ -1,7 +1,7 @@
 import datetime
 from django.db.models import QuerySet
 from django.db import transaction
-from django.core.mail import send_mail
+from django.core.mail import send_mass_mail
 from django.forms.models import model_to_dict
 
 
@@ -102,35 +102,32 @@ class MailingService:
             raise NoTaskExist
 
     def check_task_date(self) -> QuerySet:
-        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now()).prefetch_related('receivers__user__email')
-        
-        if tasks.exists():
-            successful = 0
+        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now()).prefetch_related('receivers')
 
-            for task in tasks:
-                task_receivers = task.receivers.all()
+        for task in tasks:
+            task_receivers = task.receivers.values_list('user__email', flat=True)
 
-                if task_receivers.exists():
-                    for task_receiver in task_receivers:
-                        if task_receiver.user.email:
-                            send_mail(
-                                subject=task.title,
-                                message=task.message,
-                                from_email=DEFAULT_FROM_EMAIL,
-                                recipient_list=[task_receiver.user.email],
-                                fail_silently=False,
+            if task_receivers:
+                try:
+                    message = (task.title,
+                               task.message,
+                               DEFAULT_FROM_EMAIL,
+                                task_receivers,
                             )
-                            
-                            successful += 1
 
+                    send_mass_mail((message,), fail_silently=False)
+                
                     TaskReport.objects.create(task=task, task_compeleted=True,
-                                                        total_receivers=task_receivers.count(),
-                                                        successful=successful)
+                                                    total_receivers=task_receivers.count(),
+                                                    successful=len(task_receivers))
                     task.completed = True
                     task.save()
 
-        else:
-            print('no tasks to send')
+                except Exception as e:
+                    print(e)
+                    TaskReport.objects.create(task=task, task_compeleted=False,
+                                                    total_receivers=task_receivers.count(),
+                                                    successful=len(task_receivers), error_detail=str(e))
 
         return tasks
     

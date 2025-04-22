@@ -44,6 +44,7 @@ class TaskReport(models.Model):
     task_compeleted = models.BooleanField(default=False, verbose_name='Задача выполнена')
     total_receivers = models.PositiveIntegerField(verbose_name='Общее кол-во получателей')
     successful = models.PositiveIntegerField(verbose_name='Успешные')
+    error_detail = models.CharField(verbose_name='Описание ошибки', blank=True, null=True)
     
     def __str__(self):
         return f'Отчёт №{self.pk} по задаче {self.task.pk}'
