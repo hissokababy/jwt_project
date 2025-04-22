@@ -13,7 +13,7 @@ from mailing_app.services.mailing import MailingService
 @extend_schema(tags=["Mailing"])
 class TaskDetailView(APIView):
     permission_classes = [IsAdminUser]
-    # authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     serializer_class = CreateTaskSerializer
     service = MailingService
 
