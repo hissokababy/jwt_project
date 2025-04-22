@@ -1,4 +1,5 @@
 import datetime
+from django.utils import timezone
 from django.db.models import QuerySet
 from django.db import transaction
 from django.core.mail import send_mass_mail
@@ -9,48 +10,45 @@ from jwtapp.models import User
 
 from project_jwt.settings import DEFAULT_FROM_EMAIL
 from mailing_app.models import Task, TaskReceiver, TaskReport
-from mailing_app.exeptions import NoTaskExist, ReceiverIdError
+from mailing_app.exeptions import NoTaskExist, ReceiverIdError, InvalidTaskDate
 
 class MailingService:
-    def __init__(self):
-        pass
+    def __init__(self, user: User = None, method=None):
+        self.user = user
+        self.method = method
 
-    def create_task(self, user: User, title: str, message: str, date: str, receivers: list) -> None:
-        with transaction.atomic():
-            _, task = Task.objects.get_or_create(created_by=user, title=title,
-                                    message=message, date=date)
+    def get_or_create_task(self, title: str = None, message: str = None, date: str = None, 
+                    receivers: list = None, pk: int = None) -> dict:
+        if self.method == 'GET':
+            try:
+                task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=pk)
+            except Task.DoesNotExist:
+                raise NoTaskExist
+                
+            data = model_to_dict(task)
+            reports_lst = [model_to_dict(i) for i in task.reports.all()]
 
-            if not task:
-                raise NoTaskExist('Task already exists')
-
-            task = Task.objects.get(created_by=user, title=title,
-                                    message=message, date=date)
+            data.update({'receivers': list(task.receivers.values_list('user__pk', flat=True))})
+            data.update({'reports': reports_lst})
+                
+            return data
             
-            self.bulk_create_receivers(task=task, receivers=receivers)
+        elif self.method == 'POST':
+            validated_date = self.validate_date(date=date)
+            with transaction.atomic():
+                task = Task.objects.create(created_by=self.user, title=title,
+                                    message=message, date=validated_date)
+                self.bulk_create_receivers(task=task, receivers=receivers)
+            
+            return model_to_dict(task)
 
-
-    def get_task_by_id(self, pk: int) -> dict:
-        try:
-            task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=pk)
-        except Task.DoesNotExist:
-            raise NoTaskExist
-        
-        data = model_to_dict(task)
-        reports_lst = [model_to_dict(i) for i in task.reports.all()]
-
-        data.update({'receivers': list(task.receivers.values_list('user__pk', flat=True))})
-        data.update({'reports': reports_lst})
-        
-        return data
-
-
-    def update_task(self, pk: int, user: User, defaults: dict) -> Task:
+    def update_task(self, pk: int, defaults: dict) -> Task:
         try:
             task = Task.objects.select_related('updated_by').get(pk=pk)
         except Task.DoesNotExist:
             raise NoTaskExist
 
-        task.updated_by = user
+        task.updated_by = self.user
         task.title = defaults.get('title', task.title)
         task.message = defaults.get('message', task.message)
         task.date = defaults.get('date', task.date)
@@ -131,5 +129,12 @@ class MailingService:
 
         return tasks
     
+    def validate_date(self, date: datetime):        
+        if date < timezone.now():
+            raise InvalidTaskDate("Date can't be in past!")
+        elif date > timezone.now() and date < timezone.now() + datetime.timedelta(minutes=5):
+            raise InvalidTaskDate("Date should be atleast 5 minutes ahead of the current time!")
 
+        return date
+        
 

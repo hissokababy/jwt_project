@@ -14,9 +14,9 @@ class Task(models.Model):
     updated_by = models.ForeignKey(User, verbose_name='Кто изменил задачу', 
                                    on_delete=models.SET_NULL, null=True)
 
-    title = models.CharField(verbose_name='Название задачи')
-    message = models.TextField(verbose_name='Текст')
-    date = models.DateTimeField(verbose_name='Дата выполнения задачи')
+    title = models.CharField(verbose_name='Название задачи', blank=True, null=True)
+    message = models.TextField(verbose_name='Текст', blank=True, null=True)
+    date = models.DateTimeField(verbose_name='Дата выполнения задачи', blank=True, null=True)
     completed = models.BooleanField(default=False, verbose_name='Задача выполнена')
 
     def __str__(self):
