@@ -32,7 +32,7 @@ class TaskDetailView(APIView):
     @extend_schema(responses=TaskSerilizer)
     def get(self, request, pk=None, format=None):
 
-        task = self.service(user=request.user, method=request.method).get_or_create_task(pk=pk)
+        task = self.service(user=request.user, method=request.method, pk=pk).get_or_create_task()
         return Response(task, status=status.HTTP_200_OK)
     
     @extend_schema(responses=TaskSerilizer)
@@ -40,11 +40,11 @@ class TaskDetailView(APIView):
         serializer = CreateTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        self.service(request.user).update_task(pk, defaults=serializer.validated_data)
+        self.service(user=request.user, pk=pk).update_task(defaults=serializer.validated_data)
 
         return Response(status=status.HTTP_200_OK)
     
 
     def delete(self, request, pk=None, format=None):
-        self.service.delete_task(pk)
+        self.service(pk=pk).delete_task()
         return Response(status=status.HTTP_200_OK)

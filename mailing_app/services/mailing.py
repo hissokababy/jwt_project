@@ -13,15 +13,16 @@ from mailing_app.models import Task, TaskReceiver, TaskReport
 from mailing_app.exeptions import NoTaskExist, ReceiverIdError, InvalidTaskDate
 
 class MailingService:
-    def __init__(self, user: User = None, method=None):
+    def __init__(self, user: User = None, method=None, pk=None):
         self.user = user
         self.method = method
+        self.pk = pk
 
     def get_or_create_task(self, title: str = None, message: str = None, date: str = None, 
-                    receivers: list = None, pk: int = None) -> dict:
+                    receivers: list = None) -> dict:
         if self.method == 'GET':
             try:
-                task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=pk)
+                task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=self.pk)
             except Task.DoesNotExist:
                 raise NoTaskExist
                 
@@ -42,9 +43,9 @@ class MailingService:
             
             return model_to_dict(task)
 
-    def update_task(self, pk: int, defaults: dict) -> Task:
+    def update_task(self, defaults: dict) -> Task:
         try:
-            task = Task.objects.select_related('updated_by').get(pk=pk)
+            task = Task.objects.select_related('updated_by').get(pk=self.pk)
         except Task.DoesNotExist:
             raise NoTaskExist
 
@@ -81,7 +82,6 @@ class MailingService:
 
         return task    
 
-
     def bulk_create_receivers(self, task: Task, receivers: list) -> None:
         users = User.objects.filter(pk__in=receivers)
         non_existent_users = list(set(receivers) - set(users.values_list('pk', flat=True)))
@@ -93,14 +93,15 @@ class MailingService:
 
         receivers = TaskReceiver.objects.bulk_create(new_receivers)
 
-    def delete_task(self, pk: int) -> None:
+    def delete_task(self) -> None:
         try:
-            Task.objects.get(pk=pk).delete()
+            Task.objects.get(pk=self.pk).delete()
         except Task.DoesNotExist:
             raise NoTaskExist
 
     def check_task_date(self) -> QuerySet:
-        tasks = Task.objects.filter(completed=False, date__lte=datetime.datetime.now()).prefetch_related('receivers')
+        now = datetime.datetime.now()
+        tasks = Task.objects.filter(completed=False, date__lte=now).prefetch_related('receivers')
 
         for task in tasks:
             task_receivers = task.receivers.values_list('user__email', flat=True)
@@ -116,7 +117,7 @@ class MailingService:
                     send_mass_mail((message,), fail_silently=False)
                 
                     TaskReport.objects.create(task=task, task_compeleted=True,
-                                                    total_receivers=task_receivers.count(),
+                                                    total_receivers=len(task_receivers),
                                                     successful=len(task_receivers))
                     task.completed = True
                     task.save()
@@ -124,15 +125,13 @@ class MailingService:
                 except Exception as e:
                     print(e)
                     TaskReport.objects.create(task=task, task_compeleted=False,
-                                                    total_receivers=task_receivers.count(),
+                                                    total_receivers=len(task_receivers),
                                                     successful=len(task_receivers), error_detail=str(e))
 
         return tasks
     
     def validate_date(self, date: datetime):        
-        if date < timezone.now():
-            raise InvalidTaskDate("Date can't be in past!")
-        elif date > timezone.now() and date < timezone.now() + datetime.timedelta(minutes=5):
+        if date < timezone.now() + datetime.timedelta(minutes=5):
             raise InvalidTaskDate("Date should be atleast 5 minutes ahead of the current time!")
 
         return date
