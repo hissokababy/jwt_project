@@ -3,56 +3,56 @@ from django.utils import timezone
 from django.db.models import QuerySet
 from django.db import transaction
 from django.core.mail import send_mass_mail
-from django.forms.models import model_to_dict
 
 
 from jwtapp.models import User
 
+from mailing_app.serializers import TaskSerilizer
 from project_jwt.settings import DEFAULT_FROM_EMAIL
 from mailing_app.models import Task, TaskReceiver, TaskReport
 from mailing_app.exeptions import NoTaskExist, ReceiverIdError, InvalidTaskDate
 
 class MailingService:
-    def __init__(self, user: User = None, method=None, pk=None):
+    def __init__(self, user: User = None):
         self.user = user
-        self.method = method
-        self.pk = pk
 
-    def get_or_create_task(self, title: str = None, message: str = None, date: str = None, 
-                    receivers: list = None) -> dict:
-        if self.method == 'GET':
-            try:
-                task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=self.pk)
-            except Task.DoesNotExist:
-                raise NoTaskExist
-                
-            data = model_to_dict(task)
-            reports_lst = [model_to_dict(i) for i in task.reports.all()]
-
-            data.update({'receivers': list(task.receivers.values_list('user__pk', flat=True))})
-            data.update({'reports': reports_lst})
-                
-            return data
-            
-        elif self.method == 'POST':
-            validated_date = self.validate_date(date=date)
-            with transaction.atomic():
-                task = Task.objects.create(created_by=self.user, title=title,
-                                    message=message, date=validated_date)
-                self.bulk_create_receivers(task=task, receivers=receivers)
-            
-            return model_to_dict(task)
-
-    def update_task(self, defaults: dict) -> Task:
+    def get_task(self, pk: int) -> dict:
         try:
-            task = Task.objects.select_related('updated_by').get(pk=self.pk)
+            task = Task.objects.prefetch_related('receivers').prefetch_related('reports').get(pk=pk)
         except Task.DoesNotExist:
             raise NoTaskExist
+            
+        serializer = TaskSerilizer(task)
+        return serializer.data
+
+       
+    def create_task(self, title: str = None, message: str = None, date: str = None, 
+                    receivers: list = None) -> dict:     
+        validated_date = self.validate_date(date=date)
+        with transaction.atomic():
+            task = Task.objects.create(created_by=self.user, title=title,
+                                message=message, date=validated_date)
+            self.bulk_create_receivers(task=task, receivers=receivers)
+            
+        serializer = TaskSerilizer(task)
+        return serializer.data
+    
+
+    def update_task(self, pk: int, defaults: dict) -> dict:
+        try:
+            task = Task.objects.select_related('updated_by').get(pk=pk)
+        except Task.DoesNotExist:
+            raise NoTaskExist
+        
+        if task.completed:
+            raise NoTaskExist("you can't change this task it was already completed, create a new task")
+
+        validated_date = self.validate_date(defaults.get('date', task.date))
 
         task.updated_by = self.user
         task.title = defaults.get('title', task.title)
         task.message = defaults.get('message', task.message)
-        task.date = defaults.get('date', task.date)
+        task.date = validated_date
         task.save()
 
         receivers_lst = defaults.get('receivers') # получили список ид пользователей
@@ -70,7 +70,7 @@ class MailingService:
         ####### удаление получателей #######
         TaskReceiver.objects.exclude(task=task, user__pk__in=receivers_lst).delete()
 
-        # ####### добавление новых получателей #######
+        ####### добавление новых получателей #######
         all_task_receivers = TaskReceiver.objects.filter(task=task, task__completed=False).values_list('user__pk', flat=True)
         all_task_receivers_set = set(all_task_receivers)
 
@@ -80,7 +80,8 @@ class MailingService:
             self.bulk_create_receivers(task, receivers=new_receivers)
         # ####### добавление новых получателей #######
 
-        return task    
+        serializer = TaskSerilizer(task)
+        return serializer.data 
 
     def bulk_create_receivers(self, task: Task, receivers: list) -> None:
         users = User.objects.filter(pk__in=receivers)
@@ -93,9 +94,9 @@ class MailingService:
 
         receivers = TaskReceiver.objects.bulk_create(new_receivers)
 
-    def delete_task(self) -> None:
+    def delete_task(self, pk: int) -> None:
         try:
-            Task.objects.get(pk=self.pk).delete()
+            Task.objects.get(pk=pk).delete()
         except Task.DoesNotExist:
             raise NoTaskExist
 

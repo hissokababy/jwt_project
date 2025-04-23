@@ -11,7 +11,7 @@ class CreateTaskSerializer(serializers.Serializer):
 
 
 class TaskReceiverSerializer(serializers.Serializer):
-    user = serializers.IntegerField()
+    user_id = serializers.IntegerField()
 
 
 class TaskReportSerializer(serializers.Serializer):
