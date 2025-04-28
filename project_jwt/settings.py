@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
     'jwtapp',
     'mailing_app',
+    'broker',
     'rest_framework',
     'drf_spectacular',
 
@@ -233,3 +234,9 @@ REFRESH_PUBLIC_KEY = pem.parse_file("public_key.pem")[0]
 CELERY_BROKER_URL = "redis://redis:6379/0"
 CELERY_RESULT_BACKEND = "redis://redis:6379/0"
 CELERY_WORKER_TIME_INTERVAL = 60.0
+
+
+RABBITMQ_ERLANG_COOKIE = "SWQOKODSQALRPCLNMEQG"
+RABBITMQ_DEFAULT_USER = "rabbitmq"
+RABBITMQ_DEFAULT_PASS = "rabbitmq"
+RABBITMQ_DEFAULT_VHOST = "/"
