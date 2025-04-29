@@ -14,7 +14,7 @@ class Task(models.Model):
     updated_by = models.ForeignKey(User, verbose_name='Кто изменил задачу', 
                                    on_delete=models.SET_NULL, null=True)
 
-    title = models.CharField(verbose_name='Название задачи', blank=True, null=True)
+    title = models.CharField(verbose_name='Название задачи', blank=True, null=True, max_length=500)
     message = models.TextField(verbose_name='Текст', blank=True, null=True)
     date = models.DateTimeField(verbose_name='Дата выполнения задачи', blank=True, null=True)
     completed = models.BooleanField(default=False, verbose_name='Задача выполнена')
@@ -44,7 +44,7 @@ class TaskReport(models.Model):
     task_compeleted = models.BooleanField(default=False, verbose_name='Задача выполнена')
     total_receivers = models.PositiveIntegerField(verbose_name='Общее кол-во получателей')
     successful = models.PositiveIntegerField(verbose_name='Успешные')
-    error_detail = models.CharField(verbose_name='Описание ошибки', blank=True, null=True)
+    error_detail = models.CharField(verbose_name='Описание ошибки', blank=True, null=True, max_length=500)
     
     def __str__(self):
         return f'Отчёт №{self.pk} по задаче {self.task.pk}'

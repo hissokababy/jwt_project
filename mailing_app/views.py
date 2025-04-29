@@ -34,6 +34,7 @@ class TaskDetailView(APIView):
 
         task = self.service().get_task(pk=pk)
         return Response(task, status=status.HTTP_200_OK)
+
     
     @extend_schema(responses=TaskSerilizer)
     def put(self, request, pk=None, format=None):
